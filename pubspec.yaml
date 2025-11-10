@@ -1,0 +1,38 @@
+name: tetris_flutter
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  # Użyłem standardowego, bezpiecznego zakresu dla SDK
+  sdk: '>=3.7.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flame: ^1.10.0
+  shared_preferences: ^2.2.3
+  cupertino_icons: ^1.0.8
+  flame_audio: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+# Sekcja Fluttera
+flutter:
+  uses-material-design: true
+
+  # Ta deklaracja jest poprawna i wczyta cały folder
+  assets:
+    - assets/fonts/
+    - assets/audio/
+
+  # Ta deklaracja jest również poprawna i rejestruje czcionkę
+  fonts:
+    - family: PressStart2P
+      fonts:
+        - asset: assets/fonts/PressStart2P-Regular.ttf
