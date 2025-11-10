@@ -1,4 +1,4 @@
-import 'package:flame/game.dart'; // <-- POPRAWKA BYŁA TUTAJ
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/camera.dart';
@@ -14,7 +14,7 @@ import 'landed_tiles_component.dart';
 import 'game_over_menu.dart'; 
 
 class TetrisGame extends FlameGame 
-    with DragCallbacks, TapCallbacks, DoubleTapCallbacks {
+    with DragCallbacks, TapCallbacks, DoubleTapCallbacks { // DoubleTapCallbacks już nie szkodzi
   
   // Właściwości gry
   late TetrominoComponent currentTetromino;
@@ -33,7 +33,7 @@ class TetrisGame extends FlameGame
   int totalLinesCleared = 0;
   static const int linesPerLevel = 10;
   
-  List<int> highScores = []; // Ta zmienna jest już na miejscu
+  List<int> highScores = [];
 
   // Właściwości dla "Next" i "Hold"
   final ValueNotifier<String> nextTetrominoType = ValueNotifier('');
@@ -50,6 +50,7 @@ class TetrisGame extends FlameGame
 
   @override
   Future<void> onLoad() async {
+    // (onLoad bez zmian)
     await super.onLoad();
     
     camera.viewport = FixedResolutionViewport(resolution: worldSize);
@@ -128,7 +129,7 @@ class TetrisGame extends FlameGame
     }
   }
 
-  // --- OBSŁUGA GESTÓW (Z PEŁNĄ LOGIKĄ) ---
+  // --- OBSŁUGA GESTÓW ---
   @override
   void onLongTapDown(TapDownEvent event) {
     if (isGameOver) return;
@@ -147,11 +148,13 @@ class TetrisGame extends FlameGame
     super.onDragStart(event);
   }
 
+  // --- POPRAWKA: PRZYWRÓCONO LOGIKĘ 'SOFT DROP' ---
   @override
   void onDragUpdate(DragUpdateEvent event) {
     if (isGameOver) return; 
     if (event.pointerId == _dragPointerId) {
       _dragAccumulatedX += event.canvasDelta.x;
+      // Przywracamy sprawdzanie przeciągnięcia w dół
       if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y;
       
       if (_dragAccumulatedX.abs() > tileSize * 1.5) { 
@@ -159,9 +162,11 @@ class TetrisGame extends FlameGame
         currentTetromino.tryMove(Vector2(direction.toDouble(), 0));
         _dragAccumulatedX = 0.0;
       }
+      
+      // Przywracamy logikę 'Soft Drop'
       if (_dragAccumulatedY > tileSize) {
         currentTetromino.tryMove(Vector2(0, 1));
-        fallTimer = 0.0; 
+        fallTimer = 0.0; // Resetuj timer, aby nie było "podwójnego" spadku
         _dragAccumulatedY = 0.0;
       }
     }
@@ -199,16 +204,15 @@ class TetrisGame extends FlameGame
     currentTetromino.rotate();
     super.onTapUp(event);
   }
-  @override
-  void onDoubleTapDown(DoubleTapDownEvent event) {
-    if (isGameOver) return;
-    currentTetromino.hardDrop();
-    super.onDoubleTapDown(event);
-  }
+  
+  // --- USUNIĘTA METODA 'onDoubleTapDown' ---
+  // @override
+  // void onDoubleTapDown(DoubleTapDownEvent event) { ... }
+
   // --- KONIEC OBSŁUGI GESTÓW ---
 
 
-  // --- LOGIKA GRY ---
+  // --- LOGIKA GRY (bez zmian) ---
   bool isValidPosition(Vector2 tetrominoPos, List<Vector2> shape) {
     for (final offset in shape) {
       final tilePos = tetrominoPos + offset;

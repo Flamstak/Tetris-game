@@ -4,7 +4,6 @@ import 'tile_component.dart';
 import 'tetris_game.dart'; 
 import 'package:flame_audio/flame_audio.dart';
 
-// Zostawiamy 'PositionComponent', to jest dobra praktyka
 class TetrominoComponent extends PositionComponent with HasGameReference<TetrisGame> {
   Vector2 gridPosition; 
   List<Vector2> shape; 
@@ -31,6 +30,7 @@ class TetrominoComponent extends PositionComponent with HasGameReference<TetrisG
       final tile = TileComponent(
         gridPosition: tilePos,
         color: color,
+        isGhost: false,
       );
       tiles.add(tile);
       add(tile); 
@@ -77,31 +77,16 @@ class TetrominoComponent extends PositionComponent with HasGameReference<TetrisG
       newShape.add(Vector2(-offset.y, offset.x));
     }
 
-    if (game.isValidPosition(gridPosition, shape)) {
+    if (game.isValidPosition(gridPosition, newShape)) {
       shape = newShape; 
       updateTilePositions();
       FlameAudio.play('rotate.wav');
     }
   }
 
-  void hardDrop() {
-    if (isLanded) return; 
+  // --- USUNIĘTA METODA 'hardDrop' ---
+  // void hardDrop() { ... }
 
-    Vector2 finalPosition = gridPosition;
-
-    while (game.isValidPosition(finalPosition + Vector2(0, 1), shape)) {
-      finalPosition += Vector2(0, 1);
-    }
-
-    gridPosition = finalPosition;
-    updateTilePositions();
-    
-    isLanded = true;
-    hideGhost(); 
-    game.landTetromino(this);
-  }
-
-  // TERAZ TO ZADZIAŁA
   void hideGhost() {
     for (final tile in ghostTiles) {
       tile.isHidden = true;
@@ -118,7 +103,6 @@ class TetrominoComponent extends PositionComponent with HasGameReference<TetrisG
 
     for (int i = 0; i < ghostTiles.length; i++) {
       ghostTiles[i].gridPosition = ghostPosition + shape[i];
-      // TERAZ TO ZADZIAŁA
       ghostTiles[i].isHidden = false; 
     }
   }
