@@ -1,117 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'tetris_game.dart'; 
-import 'tetromino_data.dart';
+import 'tetromino_data.dart'; //
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
-  final game = TetrisGame();
+  final game = TetrisGame(); //
   
   runApp(
     MaterialApp(
       home: Scaffold(
-        backgroundColor: Colors.black, 
-        // --- POPRAWKA: Używamy 'Builder' aby uzyskać context dla showDialog ---
-        body: Builder(
+        backgroundColor: Colors.black, //
+        body: Builder( //
           builder: (context) { 
-            return Center( 
+            return Center( //
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center, //
                 children: [
                   
                   SizedBox(
-                    width: worldSize.x,
+                    width: worldSize.x, //
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween, //
+                      crossAxisAlignment: CrossAxisAlignment.start, //
                       children: [
                         
-                        // 1. 'Hold' Box (bez zmian)
+                        // 1. 'Hold' Box
                         Flexible(
-                          flex: 1, 
-                          child: HoldPieceBox(listenable: game.heldTetrominoType),
+                          flex: 1, //
+                          child: HoldPieceBox(listenable: game.heldTetrominoType), //
                         ),
 
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 10), //
 
-                        // --- 2. ZMODYFIKOWANA KOLUMNA (USUNIĘTO USTAWIEINA) ---
+                        // 2. Kolumna Wyniku i Poziomu
                         Flexible(
-                          flex: 2, 
+                          flex: 2, //
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-                            decoration: BoxDecoration(
-                              color: const Color.fromRGBO(0, 0, 0, 0.8),
-                              borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-                              border: Border.all(
-                                color: Colors.blue.shade900.withAlpha(128), 
-                                width: 2.0
+                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0), //
+                            decoration: BoxDecoration( //
+                              color: const Color.fromRGBO(0, 0, 0, 0.8), //
+                              borderRadius: const BorderRadius.all(Radius.circular(8.0)), //
+                              border: Border.all( //
+                                color: Colors.blue.shade900.withAlpha(128), //
+                                width: 2.0 //
                               ),
                             ),
                             child: Column(
                               children: [
-                                // 2a. WYNIK (bez zmian)
+                                // 2a. WYNIK
                                 ValueListenableBuilder<int>(
-                                  valueListenable: game.score,
+                                  valueListenable: game.score, //
                                   builder: (context, value, child) {
-                                    return Text(
-                                      'Score: $value',
-                                      textAlign: TextAlign.center, 
-                                      style: const TextStyle(
-                                        fontFamily: 'PressStart2P', 
-                                        color: Colors.white,
-                                        fontSize: 18,
+                                    return Text( //
+                                      'Score: $value', //
+                                      textAlign: TextAlign.center, //
+                                      style: const TextStyle( //
+                                        fontFamily: 'PressStart2P', //
+                                        color: Colors.white, //
+                                        fontSize: 18, //
                                       ),
                                     );
                                   },
                                 ),
-                                const SizedBox(height: 8),
-                                // 2b. POZIOM (bez zmian)
+                                const SizedBox(height: 8), //
+                                // 2b. POZIOM
                                 ValueListenableBuilder<int>(
-                                  valueListenable: game.level,
+                                  valueListenable: game.level, //
                                   builder: (context, value, child) {
-                                    return Text(
-                                      'Level: $value',
-                                      textAlign: TextAlign.center, 
-                                      style: const TextStyle(
-                                        fontFamily: 'PressStart2P', 
-                                        color: Colors.white,
-                                        fontSize: 14,
+                                    return Text( //
+                                      'Level: $value', //
+                                      textAlign: TextAlign.center, //
+                                      style: const TextStyle( //
+                                        fontFamily: 'PressStart2P', //
+                                        color: Colors.white, //
+                                        fontSize: 14, //
                                       ),
                                     );
                                   },
                                 ),
-                                
-                                // --- USUNIĘTO SEKCJĘ USTAWIEŃ STĄD ---
                               ],
                             ),
                           ),
                         ),
 
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 10), //
 
-                        // --- 3. ZMODYFIKOWANA PRAWA KOLUMNA (NEXT + USTAWIEINA) ---
+                        // 3. Kolumna 'Next' i Ustawień
                         Flexible(
-                          flex: 1,
-                          // Używamy Kolumny, aby umieścić przycisk POD 'NextBox'
+                          flex: 1, //
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.start, //
+                            crossAxisAlignment: CrossAxisAlignment.center, //
                             children: [
                               // 3a. 'Next' Box
-                              NextPieceBox(listenable: game.nextTetrominoType),
+                              NextPieceBox(listenable: game.nextTetrominoType), //
                               
-                              // 3b. Nowy przycisk Ustawień
-                              const SizedBox(height: 10),
+                              // 3b. Przycisk Ustawień
+                              const SizedBox(height: 10), //
                               IconButton(
-                                icon: const Icon(
-                                  Icons.settings,
-                                  color: Colors.white70,
-                                  size: 30,
+                                icon: const Icon( //
+                                  Icons.settings, //
+                                  color: Colors.white70, //
+                                  size: 30, //
                                 ),
                                 onPressed: () {
-                                  // Wywołaj okienko dialogowe
-                                  _showSettingsDialog(context, game);
+                                  // Wywołaj okienko dialogowe z nową logiką pauzy
+                                  _showSettingsDialog(context, game); //
                                 },
                               ),
                             ],
@@ -122,13 +118,13 @@ void main() {
                     ),
                   ),
                   
-                  const SizedBox(height: 10), 
+                  const SizedBox(height: 10), //
 
-                  // Widżet Gry (bez zmian)
+                  // Widżet Gry
                   SizedBox(
-                    width: worldSize.x,
-                    height: worldSize.y,
-                    child: GameWidget(game: game),
+                    width: worldSize.x, //
+                    height: worldSize.y, //
+                    child: GameWidget(game: game), //
                   ),
                 ],
               ),
@@ -140,56 +136,60 @@ void main() {
   );
 }
 
-// --- NOWA FUNKCJA POKAZUJĄCA DIALOG ---
+// --- ZMODYFIKOWANA FUNKCJA DIALOGU ---
 void _showSettingsDialog(BuildContext context, TetrisGame game) {
+  // --- POPRAWKA: Pauzuj grę PRZED otwarciem dialogu ---
+  game.pauseGame();
+
   showDialog(
     context: context,
+    // POPRAWKA: Nie pozwalaj zamknąć dialogu kliknięciem obok
+    barrierDismissible: false,
     builder: (BuildContext dialogContext) {
-      // Używamy ciemnego tła
       return AlertDialog(
-        backgroundColor: Colors.grey[900],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          side: BorderSide(color: Colors.blue.shade900.withAlpha(128), width: 2.0),
+        backgroundColor: Colors.grey[900], //
+        shape: RoundedRectangleBorder( //
+          borderRadius: BorderRadius.circular(8.0), //
+          side: BorderSide(color: Colors.blue.shade900.withAlpha(128), width: 2.0), //
         ),
-        title: const Text(
+        title: const Text( //
           'Ustawienia',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'PressStart2P', 
-            color: Colors.white, 
-            fontSize: 18,
+          textAlign: TextAlign.center, //
+          style: TextStyle( //
+            fontFamily: 'PressStart2P', //
+            color: Colors.white, //
+            fontSize: 18, //
           ),
         ),
         content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly, //
           children: [
             // Przycisk Muzyki
             ValueListenableBuilder<bool>(
-              valueListenable: game.isMusicEnabled,
+              valueListenable: game.isMusicEnabled, //
               builder: (context, isEnabled, child) {
                 return IconButton(
-                  icon: Icon(
-                    isEnabled ? Icons.music_note : Icons.music_off,
-                    color: Colors.white,
-                    size: 40, // Większe ikony w okienku
+                  icon: Icon( //
+                    isEnabled ? Icons.music_note : Icons.music_off, //
+                    color: Colors.white, //
+                    size: 40, //
                   ),
-                  onPressed: () => game.toggleMusic(),
+                  onPressed: () => game.toggleMusic(), //
                 );
               },
             ),
             
             // Przycisk SFX
             ValueListenableBuilder<bool>(
-              valueListenable: game.isSfxEnabled,
+              valueListenable: game.isSfxEnabled, //
               builder: (context, isEnabled, child) {
                 return IconButton(
-                  icon: Icon(
-                    isEnabled ? Icons.volume_up : Icons.volume_off,
-                    color: Colors.white,
-                    size: 40, // Większe ikony w okienku
+                  icon: Icon( //
+                    isEnabled ? Icons.volume_up : Icons.volume_off, //
+                    color: Colors.white, //
+                    size: 40, //
                   ),
-                  onPressed: () => game.toggleSfx(),
+                  onPressed: () => game.toggleSfx(), //
                 );
               },
             ),
@@ -198,12 +198,12 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
         actions: [
           // Przycisk zamykania
           TextButton(
-            child: const Text(
+            child: const Text( //
               'Zamknij',
-              style: TextStyle(
-                fontFamily: 'PressStart2P', 
-                color: Colors.blueAccent, 
-                fontSize: 12
+              style: TextStyle( //
+                fontFamily: 'PressStart2P', //
+                color: Colors.blueAccent, //
+                fontSize: 12 //
               ),
             ),
             onPressed: () {
@@ -211,58 +211,60 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
             },
           ),
         ],
-        actionsAlignment: MainAxisAlignment.center,
+        actionsAlignment: MainAxisAlignment.center, //
       );
     },
-  );
+  ).then((_) {
+    // --- POPRAWKA: Wznów grę PO zamknięciu dialogu ---
+    game.resumeGame();
+  });
 }
 
 
 // --- WIDŻET: HOLD PIECE BOX (bez zmian) ---
 class HoldPieceBox extends StatelessWidget {
-  // ... (bez zmian)
-  final ValueNotifier<String?> listenable;
-  const HoldPieceBox({super.key, required this.listenable});
+  final ValueNotifier<String?> listenable; //
+  const HoldPieceBox({super.key, required this.listenable}); //
 
   @override
   Widget build(BuildContext context) {
-    const int gridDimension = 4;
-    const double boxSize = 80.0; 
-    const double spacing = 2.0; 
+    const int gridDimension = 4; //
+    const double boxSize = 80.0; //
+    const double spacing = 2.0; //
     
     return Container(
-      width: boxSize,
-      height: boxSize,
-      decoration: BoxDecoration(
-        color: const Color.fromRGBO(0, 0, 0, 0.8),
-        borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-        border: Border.all(
-          color: Colors.blue.shade900.withAlpha(128), 
-          width: 2.0
+      width: boxSize, //
+      height: boxSize, //
+      decoration: BoxDecoration( //
+        color: const Color.fromRGBO(0, 0, 0, 0.8), //
+        borderRadius: const BorderRadius.all(Radius.circular(8.0)), //
+        border: Border.all( //
+          color: Colors.blue.shade900.withAlpha(128), //
+          width: 2.0 //
         ),
       ),
       child: ValueListenableBuilder<String?>(
-        valueListenable: listenable,
+        valueListenable: listenable, //
         builder: (context, type, child) {
-          if (type == null || type.isEmpty) return Container(); 
-          final color = tetrominoColors[type]!;
-          final gridIndices = nextPieceGrid[type] ?? [];
+          if (type == null || type.isEmpty) return Container(); //
+          final color = tetrominoColors[type]!; //
+          final gridIndices = nextPieceGrid[type] ?? []; //
           
           return GridView.builder(
-            physics: const NeverScrollableScrollPhysics(), 
-            padding: const EdgeInsets.all(spacing),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: gridDimension,
-              mainAxisSpacing: spacing,
-              crossAxisSpacing: spacing,
+            physics: const NeverScrollableScrollPhysics(), //
+            padding: const EdgeInsets.all(spacing), //
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount( //
+              crossAxisCount: gridDimension, //
+              mainAxisSpacing: spacing, //
+              crossAxisSpacing: spacing, //
             ),
-            itemCount: gridDimension * gridDimension,
+            itemCount: gridDimension * gridDimension, //
             itemBuilder: (context, index) {
-              final bool isOccupied = gridIndices.contains(index);
+              final bool isOccupied = gridIndices.contains(index); //
               return Container(
-                decoration: BoxDecoration(
-                  color: isOccupied ? color : Colors.transparent,
-                  borderRadius: isOccupied ? const BorderRadius.all(Radius.circular(2.0)) : null,
+                decoration: BoxDecoration( //
+                  color: isOccupied ? color : Colors.transparent, //
+                  borderRadius: isOccupied ? const BorderRadius.all(Radius.circular(2.0)) : null, //
                 ),
               );
             },
@@ -276,49 +278,48 @@ class HoldPieceBox extends StatelessWidget {
 
 // --- WIDŻET: NEXT PIECE BOX (bez zmian) ---
 class NextPieceBox extends StatelessWidget {
-  // ... (bez zmian)
-  final ValueNotifier<String> listenable;
-  const NextPieceBox({super.key, required this.listenable});
+  final ValueNotifier<String> listenable; //
+  const NextPieceBox({super.key, required this.listenable}); //
 
   @override
   Widget build(BuildContext context) {
-    const int gridDimension = 4;
-    const double boxSize = 80.0; 
-    const double spacing = 2.0; 
+    const int gridDimension = 4; //
+    const double boxSize = 80.0; //
+    const double spacing = 2.0; //
     
     return Container(
-      width: boxSize,
-      height: boxSize,
-      decoration: BoxDecoration(
-        color: const Color.fromRGBO(0, 0, 0, 0.8),
-        borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-        border: Border.all(
-          color: Colors.blue.shade900.withAlpha(128), 
-          width: 2.0
+      width: boxSize, //
+      height: boxSize, //
+      decoration: BoxDecoration( //
+        color: const Color.fromRGBO(0, 0, 0, 0.8), //
+        borderRadius: const BorderRadius.all(Radius.circular(8.0)), //
+        border: Border.all( //
+          color: Colors.blue.shade900.withAlpha(128), //
+          width: 2.0 //
         ),
       ),
       child: ValueListenableBuilder<String>(
-        valueListenable: listenable,
+        valueListenable: listenable, //
         builder: (context, type, child) {
-          if (type.isEmpty) return Container(); 
-          final color = tetrominoColors[type]!;
-          final gridIndices = nextPieceGrid[type] ?? [];
+          if (type.isEmpty) return Container(); //
+          final color = tetrominoColors[type]!; //
+          final gridIndices = nextPieceGrid[type] ?? []; //
           
           return GridView.builder(
-            physics: const NeverScrollableScrollPhysics(), 
-            padding: const EdgeInsets.all(spacing),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: gridDimension,
-              mainAxisSpacing: spacing,
-              crossAxisSpacing: spacing,
+            physics: const NeverScrollableScrollPhysics(), //
+            padding: const EdgeInsets.all(spacing), //
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount( //
+              crossAxisCount: gridDimension, //
+              mainAxisSpacing: spacing, //
+              crossAxisSpacing: spacing, //
             ),
-            itemCount: gridDimension * gridDimension,
+            itemCount: gridDimension * gridDimension, //
             itemBuilder: (context, index) {
-              final bool isOccupied = gridIndices.contains(index);
+              final bool isOccupied = gridIndices.contains(index); //
               return Container(
-                decoration: BoxDecoration(
-                  color: isOccupied ? color : Colors.transparent,
-                  borderRadius: isOccupied ? const BorderRadius.all(Radius.circular(2.0)) : null,
+                decoration: BoxDecoration( //
+                  color: isOccupied ? color : Colors.transparent, //
+                  borderRadius: isOccupied ? const BorderRadius.all(Radius.circular(2.0)) : null, //
                 ),
               );
             },
