@@ -2,15 +2,18 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'tile_component.dart';
 import 'tetris_game.dart'; 
-import 'package:flame_audio/flame_audio.dart'; // Import audio
+import 'package:flame_audio/flame_audio.dart';
 
-class TetrominoComponent extends Component with HasGameReference<TetrisGame> {
+// Zostawiamy 'PositionComponent', to jest dobra praktyka
+class TetrominoComponent extends PositionComponent with HasGameReference<TetrisGame> {
   Vector2 gridPosition; 
   List<Vector2> shape; 
   final Color color;
   final String tetrominoType; 
   List<TileComponent> tiles = [];
   bool isLanded = false;
+
+  List<TileComponent> ghostTiles = [];
 
   TetrominoComponent({
     required this.tetrominoType, 
@@ -21,28 +24,36 @@ class TetrominoComponent extends Component with HasGameReference<TetrisGame> {
 
   @override
   Future<void> onLoad() async {
-    // (Ta metoda pozostaje bez zmian)
     await super.onLoad();
     for (final offset in shape) {
       final tilePos = gridPosition + offset;
+      
       final tile = TileComponent(
         gridPosition: tilePos,
         color: color,
       );
       tiles.add(tile);
       add(tile); 
+
+      final ghostTile = TileComponent(
+        gridPosition: tilePos,
+        color: color,
+        isGhost: true,
+      );
+      ghostTiles.add(ghostTile);
+      add(ghostTile);
     }
+    updateGhostPosition();
   }
   
   void updateTilePositions() {
-    // (Ta metoda pozostaje bez zmian)
     for (int i = 0; i < tiles.length; i++) {
       tiles[i].gridPosition = gridPosition + shape[i];
     }
+    updateGhostPosition();
   }
 
   void tryMove(Vector2 direction) {
-    // (Ta metoda pozostaje bez zmian)
     if (isLanded) return;
     final newGridPosition = gridPosition + direction;
 
@@ -52,46 +63,63 @@ class TetrominoComponent extends Component with HasGameReference<TetrisGame> {
     } else {
       if (direction.y > 0) {
         isLanded = true; 
+        hideGhost(); 
         game.landTetromino(this);
       }
     }
   }
 
-  // --- ZMODYFIKOWANE ---
   void rotate() {
-    if (tetrominoType == 'O') return; // 'O' się nie obraca
+    if (tetrominoType == 'O') return;
 
     final List<Vector2> newShape = [];
     for (final offset in shape) {
       newShape.add(Vector2(-offset.y, offset.x));
     }
 
-    if (game.isValidPosition(gridPosition, newShape)) {
+    if (game.isValidPosition(gridPosition, shape)) {
       shape = newShape; 
-      updateTilePositions(); 
-      
-      // Odtwórz dźwięk obrotu
+      updateTilePositions();
       FlameAudio.play('rotate.wav');
     }
   }
 
-  // NOWA METODA: Hard Drop
   void hardDrop() {
-    if (isLanded) return; // Już wylądował, nie rób nic
+    if (isLanded) return; 
 
     Vector2 finalPosition = gridPosition;
 
-    // Pętlą szukamy najniższej dozwolonej pozycji
     while (game.isValidPosition(finalPosition + Vector2(0, 1), shape)) {
       finalPosition += Vector2(0, 1);
     }
 
-    // Znaleźliśmy ostateczne miejsce, ustawmy je
     gridPosition = finalPosition;
     updateTilePositions();
     
-    // Natychmiast wyląduj klocek
     isLanded = true;
+    hideGhost(); 
     game.landTetromino(this);
+  }
+
+  // TERAZ TO ZADZIAŁA
+  void hideGhost() {
+    for (final tile in ghostTiles) {
+      tile.isHidden = true;
+    }
+  }
+
+  void updateGhostPosition() {
+    if (isLanded) return; 
+
+    Vector2 ghostPosition = gridPosition;
+    while (game.isValidPosition(ghostPosition + Vector2(0, 1), shape)) {
+      ghostPosition += Vector2(0, 1);
+    }
+
+    for (int i = 0; i < ghostTiles.length; i++) {
+      ghostTiles[i].gridPosition = ghostPosition + shape[i];
+      // TERAZ TO ZADZIAŁA
+      ghostTiles[i].isHidden = false; 
+    }
   }
 }
