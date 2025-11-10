@@ -17,7 +17,7 @@ void main() {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               
-              // --- Układ: Hold, Score, Next ---
+              // --- ZAKTUALIZOWANY UKŁAD ---
               SizedBox(
                 width: worldSize.x,
                 child: Row(
@@ -33,11 +33,11 @@ void main() {
 
                     const SizedBox(width: 10),
 
-                    // 2. Score Box
+                    // --- 2. NOWA KOLUMNA NA WYNIK I POZIOM ---
                     Flexible(
-                      flex: 2,
+                      flex: 2, // Dajemy jej więcej miejsca
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
                         decoration: BoxDecoration(
                           color: const Color.fromRGBO(0, 0, 0, 0.8),
                           borderRadius: const BorderRadius.all(Radius.circular(8.0)),
@@ -46,19 +46,42 @@ void main() {
                             width: 2.0
                           ),
                         ),
-                        child: ValueListenableBuilder<int>(
-                          valueListenable: game.score,
-                          builder: (context, value, child) {
-                            return Text(
-                              'Score: $value',
-                              textAlign: TextAlign.center, 
-                              style: const TextStyle(
-                                fontFamily: 'PressStart2P', 
-                                color: Colors.white,
-                                fontSize: 18,
-                              ),
-                            );
-                          },
+                        // Używamy Kolumny
+                        child: Column(
+                          children: [
+                            // 2a. WYNIK
+                            ValueListenableBuilder<int>(
+                              valueListenable: game.score,
+                              builder: (context, value, child) {
+                                return Text(
+                                  'Score: $value',
+                                  textAlign: TextAlign.center, 
+                                  style: const TextStyle(
+                                    fontFamily: 'PressStart2P', 
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                );
+                              },
+                            ),
+                            // Mały odstęp
+                            const SizedBox(height: 8),
+                            // 2b. POZIOM
+                            ValueListenableBuilder<int>(
+                              valueListenable: game.level,
+                              builder: (context, value, child) {
+                                return Text(
+                                  'Level: $value',
+                                  textAlign: TextAlign.center, 
+                                  style: const TextStyle(
+                                    fontFamily: 'PressStart2P', 
+                                    color: Colors.white,
+                                    fontSize: 14, // Trochę mniejszy
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -77,7 +100,7 @@ void main() {
               
               const SizedBox(height: 10), 
 
-              // --- WIDŻET GRY (bez zmian) ---
+              // Widżet Gry (bez zmian)
               SizedBox(
                 width: worldSize.x,
                 height: worldSize.y,
@@ -91,11 +114,9 @@ void main() {
   );
 }
 
-// --- WIDŻET: HOLD PIECE BOX ---
+// --- WIDŻET: HOLD PIECE BOX (bez zmian) ---
 class HoldPieceBox extends StatelessWidget {
   final ValueNotifier<String?> listenable;
-  
-  // --- POPRAWKA LINTERA: Użycie 'super.key' ---
   const HoldPieceBox({super.key, required this.listenable});
 
   @override
@@ -119,7 +140,6 @@ class HoldPieceBox extends StatelessWidget {
         valueListenable: listenable,
         builder: (context, type, child) {
           if (type == null || type.isEmpty) return Container(); 
-
           final color = tetrominoColors[type]!;
           final gridIndices = nextPieceGrid[type] ?? [];
           
@@ -149,11 +169,9 @@ class HoldPieceBox extends StatelessWidget {
 }
 
 
-// --- WIDŻET: NEXT PIECE BOX ---
+// --- WIDŻET: NEXT PIECE BOX (bez zmian) ---
 class NextPieceBox extends StatelessWidget {
   final ValueNotifier<String> listenable;
-  
-  // --- POPRAWKA LINTERA: Użycie 'super.key' ---
   const NextPieceBox({super.key, required this.listenable});
 
   @override
@@ -177,7 +195,6 @@ class NextPieceBox extends StatelessWidget {
         valueListenable: listenable,
         builder: (context, type, child) {
           if (type.isEmpty) return Container(); 
-
           final color = tetrominoColors[type]!;
           final gridIndices = nextPieceGrid[type] ?? [];
           
@@ -191,9 +208,7 @@ class NextPieceBox extends StatelessWidget {
             ),
             itemCount: gridDimension * gridDimension,
             itemBuilder: (context, index) {
-              
               final bool isOccupied = gridIndices.contains(index);
-              
               return Container(
                 decoration: BoxDecoration(
                   color: isOccupied ? color : Colors.transparent,

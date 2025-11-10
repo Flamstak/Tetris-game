@@ -1,19 +1,18 @@
-import 'package:flame/game.dart';
+import 'package:flame/game.dart'; // <-- POPRAWKA BYŁA TUTAJ
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/camera.dart';
 import 'package:flame/events.dart'; 
 import 'dart:async'; 
+import 'dart:math'; // Potrzebne do 'max'
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:flame_audio/flame_audio.dart';
 
-// Importy gry
 import 'tetromino_data.dart'; 
 import 'tetromino_component.dart';
 import 'landed_tiles_component.dart';
 import 'game_over_menu.dart'; 
 
-// --- POPRAWKA TUTAJ: Usunięto 'LongPressCallbacks' ---
 class TetrisGame extends FlameGame 
     with DragCallbacks, TapCallbacks, DoubleTapCallbacks {
   
@@ -21,18 +20,24 @@ class TetrisGame extends FlameGame
   late TetrominoComponent currentTetromino;
   double fallSpeed = 0.8; 
   double fallTimer = 0.0; 
+  
   double _dragAccumulatedX = 0.0;
   double _dragAccumulatedY = 0.0;
   int? _dragPointerId;
+  
   late List<List<Color?>> grid;
   bool isGameOver = false;
+  
   final ValueNotifier<int> score = ValueNotifier(0);
-  List<int> highScores = [];
+  final ValueNotifier<int> level = ValueNotifier(1);
+  int totalLinesCleared = 0;
+  static const int linesPerLevel = 10;
+  
+  List<int> highScores = []; // Ta zmienna jest już na miejscu
 
   // Właściwości dla "Next" i "Hold"
   final ValueNotifier<String> nextTetrominoType = ValueNotifier('');
   final ValueNotifier<String?> heldTetrominoType = ValueNotifier(null); 
-  
   bool _canHold = true;
 
   String _getRandomTetrominoType() {
@@ -71,13 +76,12 @@ class TetrisGame extends FlameGame
     FlameAudio.bgm.play('theme.mp3');
   }
 
-  // Tworzy nowy klocek z kolejki "Next"
+  // (Metody spawn, hold - bez zmian)
   void spawnNewTetromino() {
     final String currentType = nextTetrominoType.value;
     final shape = List<Vector2>.from(tetrominoShapes[currentType]!);
     final color = tetrominoColors[currentType]!;
     final startPos = Vector2(4, 1);
-
     if (!isValidPosition(startPos, shape)) {
       gameOver();
     } else {
@@ -92,13 +96,10 @@ class TetrisGame extends FlameGame
       nextTetrominoType.value = _getRandomTetrominoType();
     }
   }
-
-  // Tworzy klocek o konkretnym typie (używane przez "Hold")
   void spawnSpecificTetromino(String type) {
     final shape = List<Vector2>.from(tetrominoShapes[type]!);
     final color = tetrominoColors[type]!;
     final startPos = Vector2(4, 1);
-
     if (!isValidPosition(startPos, shape)) {
       gameOver();
     } else {
@@ -112,19 +113,12 @@ class TetrisGame extends FlameGame
       _canHold = true;
     }
   }
-
-  // --- Logika "Hold" ---
   void holdTetromino() {
     if (!_canHold || isGameOver) return;
     _canHold = false; 
-
-    // Opcjonalnie: FlameAudio.play('hold.wav');
-
     final String typeToHold = currentTetromino.tetrominoType;
     remove(currentTetromino); 
-
     final String? previouslyHeldType = heldTetrominoType.value;
-
     if (previouslyHeldType == null) {
       heldTetrominoType.value = typeToHold;
       spawnNewTetromino();
@@ -134,30 +128,32 @@ class TetrisGame extends FlameGame
     }
   }
 
-  // --- Obsługa gestów ---
-
-  // --- POPRAWKA TUTAJ: Zmiana nazwy metody i typu eventu ---
+  // --- OBSŁUGA GESTÓW (Z PEŁNĄ LOGIKĄ) ---
   @override
   void onLongTapDown(TapDownEvent event) {
     if (isGameOver) return;
     holdTetromino();
-    super.onLongTapDown(event); // Wywołujemy poprawną metodę 'super'
+    super.onLongTapDown(event);
   }
 
   @override
   void onDragStart(DragStartEvent event) {
     if (isGameOver) return; 
     if (_dragPointerId == null) {
-      _dragPointerId = event.pointerId; _dragAccumulatedX = 0.0; _dragAccumulatedY = 0.0;
+      _dragPointerId = event.pointerId; 
+      _dragAccumulatedX = 0.0; 
+      _dragAccumulatedY = 0.0;
     }
     super.onDragStart(event);
   }
+
   @override
   void onDragUpdate(DragUpdateEvent event) {
     if (isGameOver) return; 
     if (event.pointerId == _dragPointerId) {
       _dragAccumulatedX += event.canvasDelta.x;
       if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y;
+      
       if (_dragAccumulatedX.abs() > tileSize * 1.5) { 
         final direction = _dragAccumulatedX > 0 ? 1 : -1; 
         currentTetromino.tryMove(Vector2(direction.toDouble(), 0));
@@ -171,22 +167,29 @@ class TetrisGame extends FlameGame
     }
     super.onDragUpdate(event);
   }
+
   @override
   void onDragEnd(DragEndEvent event) {
     if (isGameOver) return; 
     if (event.pointerId == _dragPointerId) {
-      _dragPointerId = null; _dragAccumulatedX = 0.0; _dragAccumulatedY = 0.0;
+      _dragPointerId = null; 
+      _dragAccumulatedX = 0.0; 
+      _dragAccumulatedY = 0.0;
     }
     super.onDragEnd(event);
   }
+
   @override
   void onDragCancel(DragCancelEvent event) {
      if (isGameOver) return; 
      if (event.pointerId == _dragPointerId) {
-      _dragPointerId = null; _dragAccumulatedX = 0.0; _dragAccumulatedY = 0.0;
+      _dragPointerId = null; 
+      _dragAccumulatedX = 0.0; 
+      _dragAccumulatedY = 0.0;
     }
     super.onDragCancel(event);
   }
+
   @override
   void onTapUp(TapUpEvent event) {
     if (isGameOver) {
@@ -202,10 +205,10 @@ class TetrisGame extends FlameGame
     currentTetromino.hardDrop();
     super.onDoubleTapDown(event);
   }
-  // --- Koniec obsługi gestów ---
+  // --- KONIEC OBSŁUGI GESTÓW ---
 
 
-  // --- Logika gry (bez zmian) ---
+  // --- LOGIKA GRY ---
   bool isValidPosition(Vector2 tetrominoPos, List<Vector2> shape) {
     for (final offset in shape) {
       final tilePos = tetrominoPos + offset;
@@ -273,15 +276,22 @@ class TetrisGame extends FlameGame
   void addScore(int linesCleared) {
     int points = 0;
     if (linesCleared == 1) {
-      points = 100;
+      points = 100 * level.value;
     } else if (linesCleared == 2) {
-      points = 300;
+      points = 300 * level.value;
     } else if (linesCleared == 3) {
-      points = 500;
+      points = 500 * level.value;
     } else if (linesCleared >= 4) {
-      points = 800;
+      points = 800 * level.value;
     }
     score.value += points;
+
+    totalLinesCleared += linesCleared;
+    if (totalLinesCleared >= (level.value * linesPerLevel)) {
+      level.value++;
+      double newSpeed = 0.8 - (level.value - 1) * 0.05;
+      fallSpeed = max(0.1, newSpeed);
+    }
   }
 
   @override
@@ -301,6 +311,7 @@ class TetrisGame extends FlameGame
     FlameAudio.play('game_over.mp3');
 
     await _updateAndSaveHighScores(score.value);
+    
     final menu = GameOverMenuComponent(
       score: score.value,
       highScores: highScores,
@@ -312,7 +323,12 @@ class TetrisGame extends FlameGame
     grid = List.generate(columns, (_) => List.filled(rows, null));
     removeAll(children.whereType<GameOverMenuComponent>());
     removeAll(children.whereType<TetrominoComponent>());
+    
     score.value = 0; 
+    level.value = 1;
+    totalLinesCleared = 0;
+    fallSpeed = 0.8;
+    
     isGameOver = false;
     heldTetrominoType.value = null;
     _canHold = true;
@@ -321,12 +337,12 @@ class TetrisGame extends FlameGame
     FlameAudio.bgm.play('theme.mp3');
   }
 
+  // --- Zarządzanie wynikami (bez zmian) ---
   Future<void> _loadHighScores() async {
     final prefs = await SharedPreferences.getInstance();
     final scoreStrings = prefs.getStringList('highScores') ?? [];
     highScores = scoreStrings.map((s) => int.parse(s)).toList();
   }
-
   Future<void> _updateAndSaveHighScores(int newScore) async {
     highScores.add(newScore);
     highScores.sort((a, b) => b.compareTo(a));
