@@ -4,7 +4,6 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  # Użyłem standardowego, bezpiecznego zakresu dla SDK
   sdk: '>=3.7.2 <4.0.0'
 
 dependencies:
@@ -21,18 +20,25 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 # Sekcja Fluttera
 flutter:
   uses-material-design: true
 
-  # Ta deklaracja jest poprawna i wczyta cały folder
   assets:
     - assets/fonts/
     - assets/audio/
 
-  # Ta deklaracja jest również poprawna i rejestruje czcionkę
   fonts:
     - family: PressStart2P
       fonts:
         - asset: assets/fonts/PressStart2P-Regular.ttf
+
+# <-- POPRAWKA: Sekcja 'flutter_launcher_icons' jest teraz na zewnątrz
+#     sekcji 'flutter:', na głównym poziomie wcięć.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/moja_ikonka.png"
+  min_sdk_android: 21

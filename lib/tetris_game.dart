@@ -1,5 +1,5 @@
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart'; // Potrzebne dla WidgetsBindingObserver
+import 'package:flutter/material.dart'; 
 import 'package:flame/components.dart';
 import 'package:flame/camera.dart'; 
 import 'package:flame/events.dart'; 
@@ -10,13 +10,14 @@ import 'package:flame_audio/flame_audio.dart';
 
 import 'tetromino_data.dart'; 
 import 'tetromino_component.dart';
+import 'tile_component.dart'; 
 import 'landed_tiles_component.dart';
 import 'game_over_menu.dart'; 
 
 enum GameState { playing, lineClearing, spawning, gameOver }
 
 class TetrisGame extends FlameGame 
-    with DragCallbacks, TapCallbacks, DoubleTapCallbacks, WidgetsBindingObserver { // <-- POPRAWKA: Dodajemy WidgetsBindingObserver
+    with DragCallbacks, TapCallbacks, DoubleTapCallbacks, WidgetsBindingObserver { 
   
   var gameState = GameState.spawning;
   double lineClearTimer = 0.0;
@@ -39,6 +40,12 @@ class TetrisGame extends FlameGame
   final ValueNotifier<String> nextTetrominoType = ValueNotifier('');
   final ValueNotifier<String?> heldTetrominoType = ValueNotifier(null); 
   bool _canHold = true;
+
+  // --- Właściwości Ustawień ---
+  final ValueNotifier<bool> isMusicEnabled = ValueNotifier(true);
+  final ValueNotifier<bool> isSfxEnabled = ValueNotifier(true);
+  // --- USUNIĘTO 'isSettingsVisible' ---
+  // -------------------------
 
   String _getRandomTetrominoType() {
     final keys = tetrominoShapes.keys.toList();
@@ -64,17 +71,20 @@ class TetrisGame extends FlameGame
     add(GridBackground());
     add(LandedTilesComponent());
     await _loadHighScores();
+    
+    await _loadSettings(); 
+    
     nextTetrominoType.value = _getRandomTetrominoType();
     
     spawnNewTetromino(); 
     
-    FlameAudio.bgm.play('theme.mp3');
+    if (isMusicEnabled.value) {
+      FlameAudio.bgm.play('theme.mp3');
+    }
 
-    // --- POPRAWKA: Rejestrujemy obserwatora cyklu życia ---
     WidgetsBinding.instance.addObserver(this);
   }
 
-  // --- POPRAWKA: Musimy też wyrejestrować obserwatora ---
   @override
   void onRemove() {
     WidgetsBinding.instance.removeObserver(this);
@@ -82,6 +92,7 @@ class TetrisGame extends FlameGame
   }
 
   void spawnNewTetromino() {
+    // ... (bez zmian)
     final String currentType = nextTetrominoType.value;
     final shape = List<Vector2>.from(tetrominoShapes[currentType]!);
     final color = tetrominoColors[currentType]!;
@@ -101,10 +112,10 @@ class TetrisGame extends FlameGame
     add(currentTetromino);
     _canHold = true; 
     nextTetrominoType.value = _getRandomTetrominoType();
-    // Stan ustawi sam komponent w 'onLoad'
   }
 
   void spawnSpecificTetromino(String type) {
+    // ... (bez zmian)
     final shape = List<Vector2>.from(tetrominoShapes[type]!);
     final color = tetrominoColors[type]!;
     final startPos = Vector2(4, 1);
@@ -122,10 +133,10 @@ class TetrisGame extends FlameGame
     );
     add(currentTetromino);
     _canHold = true;
-    // Stan ustawi sam komponent w 'onLoad'
   }
 
   void holdTetromino() {
+    // ... (bez zmian)
     if (!_canHold || gameState != GameState.playing) return;
     _canHold = false; 
     final String typeToHold = currentTetromino.tetrominoType;
@@ -133,7 +144,7 @@ class TetrisGame extends FlameGame
     final String? previouslyHeldType = heldTetrominoType.value;
 
     gameState = GameState.spawning; 
-    _dragPointerId = null; // <-- ZRESETUJ DRAG
+    _dragPointerId = null; 
     
     if (previouslyHeldType == null) {
       heldTetrominoType.value = typeToHold;
@@ -146,11 +157,13 @@ class TetrisGame extends FlameGame
   
   @override
   void onLongTapDown(TapDownEvent event) {
+    // ... (bez zmian)
     if (gameState != GameState.playing) return;
     holdTetromino();
     super.onLongTapDown(event);
   }
-
+  
+  // ... (metody onDrag... bez zmian) ...
   @override
   void onDragStart(DragStartEvent event) {
     if (gameState != GameState.playing) return;
@@ -165,14 +178,11 @@ class TetrisGame extends FlameGame
   @override
   void onDragUpdate(DragUpdateEvent event) {
     if (gameState != GameState.playing) return;
-
-    // "Złap" gest, jeśli onDragStart zostało pominięte
     if (_dragPointerId == null) {
       _dragPointerId = event.pointerId; 
       _dragAccumulatedX = 0.0; 
       _dragAccumulatedY = 0.0;
     }
-
     if (event.pointerId == _dragPointerId) {
       _dragAccumulatedX += event.canvasDelta.x;
       if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y;
@@ -216,6 +226,7 @@ class TetrisGame extends FlameGame
 
   @override
   void onTapUp(TapUpEvent event) {
+    // ... (bez zmian)
     if (gameState == GameState.gameOver) {
       restartGame();
       return;
@@ -225,31 +236,28 @@ class TetrisGame extends FlameGame
     super.onTapUp(event);
   }
 
-  // --- POPRAWKA: Zmieniamy nazwę metody na 'didChangeAppLifecycleState' ---
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // ... (bez zmian)
     super.didChangeAppLifecycleState(state);
     
     switch (state) {
       case AppLifecycleState.resumed:
-        // Aplikacja wróciła na pierwszy plan
-        if (gameState != GameState.gameOver) {
+        if (isMusicEnabled.value && gameState != GameState.gameOver) {
           FlameAudio.bgm.resume();
         }
         break;
-      
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
-        // Aplikacja została zminimalizowana lub ukryta
         FlameAudio.bgm.pause();
         break;
     }
   }
-  // --- KONIEC POPRAWKI AUDIO ---
   
   bool isValidPosition(Vector2 tetrominoPos, List<Vector2> shape) {
+    // ... (bez zmian)
     for (final offset in shape) {
       final tilePos = tetrominoPos + offset;
       final x = tilePos.x.toInt();
@@ -263,7 +271,10 @@ class TetrisGame extends FlameGame
   }
 
   void landTetromino(TetrominoComponent tetromino) {
-    FlameAudio.play('land.wav');
+    // ... (bez zmian)
+    if (isSfxEnabled.value) {
+      FlameAudio.play('land.wav');
+    }
     for (final tile in tetromino.tiles) {
       final x = tile.gridPosition.x.toInt();
       final y = tile.gridPosition.y.toInt();
@@ -276,6 +287,7 @@ class TetrisGame extends FlameGame
   }
 
   void checkAndClearLines() {
+    // ... (bez zmian)
     List<int> fullLines = [];
     int y = rows - 1;
     while (y >= 0) {
@@ -293,9 +305,11 @@ class TetrisGame extends FlameGame
     }
 
     if (fullLines.isNotEmpty) {
-      FlameAudio.play('clear_line.mp3');
+      if (isMusicEnabled.value) {
+        FlameAudio.bgm.play('clear_line.mp3');
+      }
       gameState = GameState.lineClearing;
-      _dragPointerId = null; // <-- POPRAWKA
+      _dragPointerId = null;
       linesToClear.addAll(fullLines);
       lineClearTimer = 0.0;
       
@@ -303,12 +317,13 @@ class TetrisGame extends FlameGame
       
     } else if (gameState == GameState.playing) {
       gameState = GameState.spawning;
-      _dragPointerId = null; // <-- POPRAWKA
+      _dragPointerId = null; 
       spawnNewTetromino();
     }
   }
 
   void clearLogicalLine(int y) {
+    // ... (bez zmian)
     for (int r = y; r > 0; r--) {
       for (int c = 0; c < columns; c++) {
         grid[c][r] = grid[c][r - 1];
@@ -320,6 +335,7 @@ class TetrisGame extends FlameGame
   }
 
   void addScore(int linesCleared) {
+    // ... (bez zmian)
     int points = 0;
     if (linesCleared == 1) {
       points = 100 * level.value;
@@ -342,6 +358,7 @@ class TetrisGame extends FlameGame
 
   @override
   void update(double dt) {
+    // ... (bez zmian)
     super.update(dt); 
     
     switch (gameState) {
@@ -352,18 +369,14 @@ class TetrisGame extends FlameGame
           fallTimer = 0.0;
         }
         break;
-        
       case GameState.lineClearing:
         lineClearTimer += dt;
-        
         children.whereType<LandedTilesComponent>().first.animationProgress = 
             lineClearTimer / lineClearAnimationDuration;
-
         if (lineClearTimer >= lineClearAnimationDuration) {
           _finishLineClear();
         }
         break;
-        
       case GameState.spawning: 
       case GameState.gameOver:
         break;
@@ -371,24 +384,28 @@ class TetrisGame extends FlameGame
   }
 
   void _finishLineClear() {
+    // ... (bez zmian)
     for (final y in linesToClear.reversed) {
       clearLogicalLine(y);
     }
     addScore(linesToClear.length);
-    
     linesToClear.clear();
     lineClearTimer = 0;
     children.whereType<LandedTilesComponent>().first.stopAnimation();
-
     gameState = GameState.spawning;
     spawnNewTetromino(); 
   }
 
   Future<void> gameOver() async {
+    // ... (bez zmian)
     gameState = GameState.gameOver;
-    _dragPointerId = null; // <-- POPRAWKA
+    _dragPointerId = null; 
     FlameAudio.bgm.stop(); 
-    FlameAudio.play('game_over.mp3');
+    
+    if (isMusicEnabled.value) {
+      FlameAudio.bgm.play('game_over.mp3');
+    }
+    
     await _updateAndSaveHighScores(score.value);
     final menu = GameOverMenuComponent(
       score: score.value,
@@ -398,6 +415,7 @@ class TetrisGame extends FlameGame
   }
 
   void restartGame() {
+    // ... (bez zmian)
     grid = List.generate(columns, (_) => List.filled(rows, null));
     removeAll(children.whereType<GameOverMenuComponent>());
     removeAll(children.whereType<TetrominoComponent>());
@@ -410,23 +428,25 @@ class TetrisGame extends FlameGame
     gameState = GameState.spawning;
     heldTetrominoType.value = null;
     _canHold = true;
-    _dragPointerId = null; // Resetuj śledzenie palca
+    _dragPointerId = null; 
     
     nextTetrominoType.value = _getRandomTetrominoType();
     spawnNewTetromino(); 
 
-    // Wznów muzykę tylko jeśli nie jest już odtwarzana (na wszelki wypadek)
-    if (!FlameAudio.bgm.isPlaying) {
-      FlameAudio.bgm.play('theme.mp3');
+    FlameAudio.bgm.stop(); 
+    if (isMusicEnabled.value) {
+      FlameAudio.bgm.play('theme.mp3'); 
     }
   }
 
   Future<void> _loadHighScores() async {
+    // ... (bez zmian)
     final prefs = await SharedPreferences.getInstance();
     final scoreStrings = prefs.getStringList('highScores') ?? [];
     highScores = scoreStrings.map((s) => int.parse(s)).toList();
   }
   Future<void> _updateAndSaveHighScores(int newScore) async {
+    // ... (bez zmian)
     highScores.add(newScore);
     highScores.sort((a, b) => b.compareTo(a));
     highScores = highScores.take(5).toList();
@@ -434,10 +454,50 @@ class TetrisGame extends FlameGame
     final scoreStrings = highScores.map((s) => s.toString()).toList();
     await prefs.setStringList('highScores', scoreStrings);
   }
-}
+
+  // --- Metody Zarządzania Ustawieniami ---
+
+  Future<void> _loadSettings() async {
+    // ... (bez zmian)
+    final prefs = await SharedPreferences.getInstance();
+    isMusicEnabled.value = prefs.getBool('isMusicEnabled') ?? true;
+    isSfxEnabled.value = prefs.getBool('isSfxEnabled') ?? true;
+  }
+
+  Future<void> _saveSettings() async {
+    // ... (bez zmian)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isMusicEnabled', isMusicEnabled.value);
+    await prefs.setBool('isSfxEnabled', isSfxEnabled.value);
+  }
+
+  void toggleMusic() {
+    // ... (bez zmian)
+    isMusicEnabled.value = !isMusicEnabled.value;
+    if (isMusicEnabled.value) {
+      if (gameState != GameState.gameOver) {
+        FlameAudio.bgm.play('theme.mp3');
+      }
+    } else {
+      FlameAudio.bgm.stop();
+    }
+    _saveSettings();
+  }
+
+  void toggleSfx() {
+    // ... (bez zmian)
+    isSfxEnabled.value = !isSfxEnabled.value;
+    _saveSettings();
+  }
+  
+  // --- USUNIĘTO 'toggleSettingsVisibility' ---
+
+} // --- Koniec klasy TetrisGame ---
+
 
 // (Komponenty tła bez zmian)
 class GradientBackgroundComponent extends PositionComponent with HasGameReference<TetrisGame> {
+// ... (bez zmian)
   GradientBackgroundComponent() {
     size = worldSize;
   }
@@ -458,6 +518,7 @@ class GradientBackgroundComponent extends PositionComponent with HasGameReferenc
 }
 
 class GridBackground extends PositionComponent {
+// ... (bez zmian)
   GridBackground() { size = worldSize; }
   @override
   void render(Canvas canvas) {
