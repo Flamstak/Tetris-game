@@ -1,5 +1,5 @@
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // Potrzebne dla WidgetsBindingObserver
 import 'package:flame/components.dart';
 import 'package:flame/camera.dart'; 
 import 'package:flame/events.dart'; 
@@ -16,7 +16,7 @@ import 'game_over_menu.dart';
 enum GameState { playing, lineClearing, spawning, gameOver }
 
 class TetrisGame extends FlameGame 
-    with DragCallbacks, TapCallbacks, DoubleTapCallbacks {
+    with DragCallbacks, TapCallbacks, DoubleTapCallbacks, WidgetsBindingObserver { // <-- POPRAWKA: Dodajemy WidgetsBindingObserver
   
   var gameState = GameState.spawning;
   double lineClearTimer = 0.0;
@@ -69,6 +69,16 @@ class TetrisGame extends FlameGame
     spawnNewTetromino(); 
     
     FlameAudio.bgm.play('theme.mp3');
+
+    // --- POPRAWKA: Rejestrujemy obserwatora cyklu życia ---
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  // --- POPRAWKA: Musimy też wyrejestrować obserwatora ---
+  @override
+  void onRemove() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onRemove();
   }
 
   void spawnNewTetromino() {
@@ -214,6 +224,30 @@ class TetrisGame extends FlameGame
     currentTetromino.rotate();
     super.onTapUp(event);
   }
+
+  // --- POPRAWKA: Zmieniamy nazwę metody na 'didChangeAppLifecycleState' ---
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // Aplikacja wróciła na pierwszy plan
+        if (gameState != GameState.gameOver) {
+          FlameAudio.bgm.resume();
+        }
+        break;
+      
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        // Aplikacja została zminimalizowana lub ukryta
+        FlameAudio.bgm.pause();
+        break;
+    }
+  }
+  // --- KONIEC POPRAWKI AUDIO ---
   
   bool isValidPosition(Vector2 tetrominoPos, List<Vector2> shape) {
     for (final offset in shape) {
@@ -380,7 +414,11 @@ class TetrisGame extends FlameGame
     
     nextTetrominoType.value = _getRandomTetrominoType();
     spawnNewTetromino(); 
-    FlameAudio.bgm.play('theme.mp3');
+
+    // Wznów muzykę tylko jeśli nie jest już odtwarzana (na wszelki wypadek)
+    if (!FlameAudio.bgm.isPlaying) {
+      FlameAudio.bgm.play('theme.mp3');
+    }
   }
 
   Future<void> _loadHighScores() async {
