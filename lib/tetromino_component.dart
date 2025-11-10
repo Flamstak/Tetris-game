@@ -44,6 +44,10 @@ class TetrominoComponent extends PositionComponent with HasGameReference<TetrisG
       add(ghostTile);
     }
     updateGhostPosition();
+
+    // --- POPRAWKA ---
+    // Poinformuj grę, że komponent jest w pełni załadowany i można grać.
+    game.gameState = GameState.playing;
   }
   
   void updateTilePositions() {

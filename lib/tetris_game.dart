@@ -1,10 +1,10 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import 'package:flame/camera.dart';
+import 'package:flame/camera.dart'; 
 import 'package:flame/events.dart'; 
 import 'dart:async'; 
-import 'dart:math'; // Potrzebne do 'max'
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:flame_audio/flame_audio.dart';
 
@@ -13,29 +13,29 @@ import 'tetromino_component.dart';
 import 'landed_tiles_component.dart';
 import 'game_over_menu.dart'; 
 
+enum GameState { playing, lineClearing, spawning, gameOver }
+
 class TetrisGame extends FlameGame 
-    with DragCallbacks, TapCallbacks, DoubleTapCallbacks { // DoubleTapCallbacks już nie szkodzi
+    with DragCallbacks, TapCallbacks, DoubleTapCallbacks {
   
-  // Właściwości gry
+  var gameState = GameState.spawning;
+  double lineClearTimer = 0.0;
+  final double lineClearAnimationDuration = 0.5;
+  List<int> linesToClear = [];
+  
   late TetrominoComponent currentTetromino;
   double fallSpeed = 0.8; 
   double fallTimer = 0.0; 
-  
   double _dragAccumulatedX = 0.0;
   double _dragAccumulatedY = 0.0;
   int? _dragPointerId;
-  
   late List<List<Color?>> grid;
-  bool isGameOver = false;
   
   final ValueNotifier<int> score = ValueNotifier(0);
   final ValueNotifier<int> level = ValueNotifier(1);
   int totalLinesCleared = 0;
   static const int linesPerLevel = 10;
-  
   List<int> highScores = [];
-
-  // Właściwości dla "Next" i "Hold"
   final ValueNotifier<String> nextTetrominoType = ValueNotifier('');
   final ValueNotifier<String?> heldTetrominoType = ValueNotifier(null); 
   bool _canHold = true;
@@ -50,96 +50,100 @@ class TetrisGame extends FlameGame
 
   @override
   Future<void> onLoad() async {
-    // (onLoad bez zmian)
     await super.onLoad();
-    
     camera.viewport = FixedResolutionViewport(resolution: worldSize);
     camera.viewfinder.position = worldSize / 2;
     camera.viewfinder.anchor = Anchor.center;
     
     await FlameAudio.audioCache.loadAll([
-      'theme.mp3',
-      'rotate.wav',
-      'land.wav',
-      'clear_line.mp3',
-      'game_over.mp3',
+      'theme.mp3', 'rotate.wav', 'land.wav', 'clear_line.mp3', 'game_over.mp3',
     ]);
     
     grid = List.generate(columns, (_) => List.filled(rows, null));
     add(GradientBackgroundComponent());
     add(GridBackground());
     add(LandedTilesComponent());
-    
     await _loadHighScores();
     nextTetrominoType.value = _getRandomTetrominoType();
-    spawnNewTetromino();
+    
+    spawnNewTetromino(); 
     
     FlameAudio.bgm.play('theme.mp3');
   }
 
-  // (Metody spawn, hold - bez zmian)
   void spawnNewTetromino() {
     final String currentType = nextTetrominoType.value;
     final shape = List<Vector2>.from(tetrominoShapes[currentType]!);
     final color = tetrominoColors[currentType]!;
     final startPos = Vector2(4, 1);
+
     if (!isValidPosition(startPos, shape)) {
       gameOver();
-    } else {
-      currentTetromino = TetrominoComponent(
-        tetrominoType: currentType,
-        shape: shape,
-        color: color,
-        startGridPosition: startPos,
-      );
-      add(currentTetromino);
-      _canHold = true; 
-      nextTetrominoType.value = _getRandomTetrominoType();
+      return;
     }
+    
+    currentTetromino = TetrominoComponent(
+      tetrominoType: currentType,
+      shape: shape,
+      color: color,
+      startGridPosition: startPos,
+    );
+    add(currentTetromino);
+    _canHold = true; 
+    nextTetrominoType.value = _getRandomTetrominoType();
+    // Stan ustawi sam komponent w 'onLoad'
   }
+
   void spawnSpecificTetromino(String type) {
     final shape = List<Vector2>.from(tetrominoShapes[type]!);
     final color = tetrominoColors[type]!;
     final startPos = Vector2(4, 1);
+
     if (!isValidPosition(startPos, shape)) {
       gameOver();
-    } else {
-      currentTetromino = TetrominoComponent(
-        tetrominoType: type,
-        shape: shape,
-        color: color,
-        startGridPosition: startPos,
-      );
-      add(currentTetromino);
-      _canHold = true;
+      return;
     }
+    
+    currentTetromino = TetrominoComponent(
+      tetrominoType: type,
+      shape: shape,
+      color: color,
+      startGridPosition: startPos,
+    );
+    add(currentTetromino);
+    _canHold = true;
+    // Stan ustawi sam komponent w 'onLoad'
   }
+
   void holdTetromino() {
-    if (!_canHold || isGameOver) return;
+    if (!_canHold || gameState != GameState.playing) return;
     _canHold = false; 
     final String typeToHold = currentTetromino.tetrominoType;
     remove(currentTetromino); 
     final String? previouslyHeldType = heldTetrominoType.value;
+
+    gameState = GameState.spawning; 
+    _dragPointerId = null; // <-- ZRESETUJ DRAG
+    
     if (previouslyHeldType == null) {
       heldTetrominoType.value = typeToHold;
-      spawnNewTetromino();
+      spawnNewTetromino(); 
     } else {
       heldTetrominoType.value = typeToHold;
-      spawnSpecificTetromino(previouslyHeldType);
+      spawnSpecificTetromino(previouslyHeldType); 
     }
   }
-
-  // --- OBSŁUGA GESTÓW ---
+  
   @override
   void onLongTapDown(TapDownEvent event) {
-    if (isGameOver) return;
+    if (gameState != GameState.playing) return;
     holdTetromino();
     super.onLongTapDown(event);
   }
 
   @override
   void onDragStart(DragStartEvent event) {
-    if (isGameOver) return; 
+    if (gameState != GameState.playing) return;
     if (_dragPointerId == null) {
       _dragPointerId = event.pointerId; 
       _dragAccumulatedX = 0.0; 
@@ -148,13 +152,19 @@ class TetrisGame extends FlameGame
     super.onDragStart(event);
   }
 
-  // --- POPRAWKA: PRZYWRÓCONO LOGIKĘ 'SOFT DROP' ---
   @override
   void onDragUpdate(DragUpdateEvent event) {
-    if (isGameOver) return; 
+    if (gameState != GameState.playing) return;
+
+    // "Złap" gest, jeśli onDragStart zostało pominięte
+    if (_dragPointerId == null) {
+      _dragPointerId = event.pointerId; 
+      _dragAccumulatedX = 0.0; 
+      _dragAccumulatedY = 0.0;
+    }
+
     if (event.pointerId == _dragPointerId) {
       _dragAccumulatedX += event.canvasDelta.x;
-      // Przywracamy sprawdzanie przeciągnięcia w dół
       if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y;
       
       if (_dragAccumulatedX.abs() > tileSize * 1.5) { 
@@ -163,10 +173,9 @@ class TetrisGame extends FlameGame
         _dragAccumulatedX = 0.0;
       }
       
-      // Przywracamy logikę 'Soft Drop'
       if (_dragAccumulatedY > tileSize) {
         currentTetromino.tryMove(Vector2(0, 1));
-        fallTimer = 0.0; // Resetuj timer, aby nie było "podwójnego" spadku
+        fallTimer = 0.0;
         _dragAccumulatedY = 0.0;
       }
     }
@@ -175,7 +184,7 @@ class TetrisGame extends FlameGame
 
   @override
   void onDragEnd(DragEndEvent event) {
-    if (isGameOver) return; 
+    if (gameState != GameState.playing) return;
     if (event.pointerId == _dragPointerId) {
       _dragPointerId = null; 
       _dragAccumulatedX = 0.0; 
@@ -186,7 +195,7 @@ class TetrisGame extends FlameGame
 
   @override
   void onDragCancel(DragCancelEvent event) {
-     if (isGameOver) return; 
+     if (gameState != GameState.playing) return;
      if (event.pointerId == _dragPointerId) {
       _dragPointerId = null; 
       _dragAccumulatedX = 0.0; 
@@ -197,22 +206,15 @@ class TetrisGame extends FlameGame
 
   @override
   void onTapUp(TapUpEvent event) {
-    if (isGameOver) {
+    if (gameState == GameState.gameOver) {
       restartGame();
       return;
     }
+    if (gameState != GameState.playing) return;
     currentTetromino.rotate();
     super.onTapUp(event);
   }
   
-  // --- USUNIĘTA METODA 'onDoubleTapDown' ---
-  // @override
-  // void onDoubleTapDown(DoubleTapDownEvent event) { ... }
-
-  // --- KONIEC OBSŁUGI GESTÓW ---
-
-
-  // --- LOGIKA GRY (bez zmian) ---
   bool isValidPosition(Vector2 tetrominoPos, List<Vector2> shape) {
     for (final offset in shape) {
       final tilePos = tetrominoPos + offset;
@@ -237,13 +239,10 @@ class TetrisGame extends FlameGame
     }
     remove(tetromino); 
     checkAndClearLines();
-    if (!isGameOver) {
-      spawnNewTetromino();
-    }
   }
 
   void checkAndClearLines() {
-    int linesClearedThisTurn = 0;
+    List<int> fullLines = [];
     int y = rows - 1;
     while (y >= 0) {
       bool isLineFull = true;
@@ -254,15 +253,24 @@ class TetrisGame extends FlameGame
         }
       }
       if (isLineFull) {
-        clearLogicalLine(y);
-        linesClearedThisTurn++;
-      } else {
-        y--;
+        fullLines.add(y);
       }
+      y--;
     }
-    if (linesClearedThisTurn > 0) {
+
+    if (fullLines.isNotEmpty) {
       FlameAudio.play('clear_line.mp3');
-      addScore(linesClearedThisTurn);
+      gameState = GameState.lineClearing;
+      _dragPointerId = null; // <-- POPRAWKA
+      linesToClear.addAll(fullLines);
+      lineClearTimer = 0.0;
+      
+      children.whereType<LandedTilesComponent>().first.startAnimation(linesToClear);
+      
+    } else if (gameState == GameState.playing) {
+      gameState = GameState.spawning;
+      _dragPointerId = null; // <-- POPRAWKA
+      spawnNewTetromino();
     }
   }
 
@@ -301,21 +309,53 @@ class TetrisGame extends FlameGame
   @override
   void update(double dt) {
     super.update(dt); 
-    if (isGameOver) return;
-    fallTimer += dt;
-    if (fallTimer >= fallSpeed) {
-      currentTetromino.tryMove(Vector2(0, 1)); 
-      fallTimer = 0.0;
+    
+    switch (gameState) {
+      case GameState.playing:
+        fallTimer += dt;
+        if (fallTimer >= fallSpeed) {
+          currentTetromino.tryMove(Vector2(0, 1)); 
+          fallTimer = 0.0;
+        }
+        break;
+        
+      case GameState.lineClearing:
+        lineClearTimer += dt;
+        
+        children.whereType<LandedTilesComponent>().first.animationProgress = 
+            lineClearTimer / lineClearAnimationDuration;
+
+        if (lineClearTimer >= lineClearAnimationDuration) {
+          _finishLineClear();
+        }
+        break;
+        
+      case GameState.spawning: 
+      case GameState.gameOver:
+        break;
     }
   }
 
+  void _finishLineClear() {
+    for (final y in linesToClear.reversed) {
+      clearLogicalLine(y);
+    }
+    addScore(linesToClear.length);
+    
+    linesToClear.clear();
+    lineClearTimer = 0;
+    children.whereType<LandedTilesComponent>().first.stopAnimation();
+
+    gameState = GameState.spawning;
+    spawnNewTetromino(); 
+  }
+
   Future<void> gameOver() async {
-    isGameOver = true;
+    gameState = GameState.gameOver;
+    _dragPointerId = null; // <-- POPRAWKA
     FlameAudio.bgm.stop(); 
     FlameAudio.play('game_over.mp3');
-
     await _updateAndSaveHighScores(score.value);
-    
     final menu = GameOverMenuComponent(
       score: score.value,
       highScores: highScores,
@@ -333,15 +373,16 @@ class TetrisGame extends FlameGame
     totalLinesCleared = 0;
     fallSpeed = 0.8;
     
-    isGameOver = false;
+    gameState = GameState.spawning;
     heldTetrominoType.value = null;
     _canHold = true;
+    _dragPointerId = null; // Resetuj śledzenie palca
+    
     nextTetrominoType.value = _getRandomTetrominoType();
-    spawnNewTetromino();
+    spawnNewTetromino(); 
     FlameAudio.bgm.play('theme.mp3');
   }
 
-  // --- Zarządzanie wynikami (bez zmian) ---
   Future<void> _loadHighScores() async {
     final prefs = await SharedPreferences.getInstance();
     final scoreStrings = prefs.getStringList('highScores') ?? [];
@@ -357,7 +398,7 @@ class TetrisGame extends FlameGame
   }
 }
 
-// --- Komponenty Tła (bez zmian) ---
+// (Komponenty tła bez zmian)
 class GradientBackgroundComponent extends PositionComponent with HasGameReference<TetrisGame> {
   GradientBackgroundComponent() {
     size = worldSize;
