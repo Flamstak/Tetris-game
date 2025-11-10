@@ -10,7 +10,6 @@ import 'package:flame_audio/flame_audio.dart';
 
 import 'tetromino_data.dart'; 
 import 'tetromino_component.dart';
-import 'tile_component.dart'; 
 import 'landed_tiles_component.dart';
 import 'game_over_menu.dart'; 
 
@@ -306,7 +305,7 @@ class TetrisGame extends FlameGame
 
     if (fullLines.isNotEmpty) {
       if (isMusicEnabled.value) {
-        FlameAudio.bgm.play('clear_line.mp3');
+        FlameAudio.play('clear_line.mp3');
       }
       gameState = GameState.lineClearing;
       _dragPointerId = null;
