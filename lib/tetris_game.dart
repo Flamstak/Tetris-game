@@ -1,561 +1,712 @@
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import 'package:flame/camera.dart'; 
-import 'package:flame/events.dart'; 
-import 'dart:async'; 
+import 'package:flame/camera.dart';
+import 'package:flame/events.dart';
+import 'dart:async';
 import 'dart:math';
-import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flame_audio/flame_audio.dart';
 
-import 'tetromino_data.dart'; //
-import 'tetromino_component.dart'; //
-// import 'tile_component.dart'; // Usunięto nieużywany import
-import 'landed_tiles_component.dart'; //
-import 'game_over_menu.dart'; //
+import 'tetromino_data.dart';
+import 'tetromino_component.dart';
+import 'landed_tiles_component.dart';
+import 'game_over_menu.dart';
 
-// --- POPRAWKA: Dodano stan 'paused' ---
-enum GameState { playing, lineClearing, spawning, gameOver, paused } //
+/// Reprezentuje możliwe stany logiki gry.
+enum GameState {
+  /// Tetromino spada, użytkownik ma kontrolę.
+  playing,
 
-class TetrisGame extends FlameGame 
-    with DragCallbacks, TapCallbacks, DoubleTapCallbacks, WidgetsBindingObserver { 
-  
-  var gameState = GameState.spawning; //
-  GameState? _previousState; // <-- NOWA ZMIENNA do zapamiętania stanu
-  
-  double lineClearTimer = 0.0; //
-  final double lineClearAnimationDuration = 0.5; //
-  List<int> linesToClear = []; //
-  
-  late TetrominoComponent currentTetromino; //
-  double fallSpeed = 0.8; //
-  double fallTimer = 0.0; //
-  double _dragAccumulatedX = 0.0; //
-  double _dragAccumulatedY = 0.0; //
-  int? _dragPointerId; //
-  late List<List<Color?>> grid; //
-  
-  final ValueNotifier<int> score = ValueNotifier(0); //
-  final ValueNotifier<int> level = ValueNotifier(1); //
-  int totalLinesCleared = 0; //
-  static const int linesPerLevel = 10; //
-  List<int> highScores = []; //
-  final ValueNotifier<String> nextTetrominoType = ValueNotifier(''); //
-  final ValueNotifier<String?> heldTetrominoType = ValueNotifier(null); //
-  bool _canHold = true; //
+  /// Trwa animacja czyszczenia linii.
+  lineClearing,
 
-  final ValueNotifier<bool> isMusicEnabled = ValueNotifier(true); //
-  final ValueNotifier<bool> isSfxEnabled = ValueNotifier(true); //
+  /// Tworzone jest nowe tetromino.
+  spawning,
 
+  /// Koniec gry, wyświetlane jest menu z wynikiem.
+  gameOver,
+
+  /// Gra jest ręcznie zapauzowana (np. w menu ustawień).
+  paused
+}
+
+/// Główna klasa gry Tetris, zbudowana przy użyciu Flame.
+///
+/// Zarządza stanem gry, pętlą aktualizacji, wejściem użytkownika,
+/// punktacją, dźwiękiem i wszystkimi komponentami gry.
+class TetrisGame extends FlameGame
+    with DragCallbacks, TapCallbacks, DoubleTapCallbacks, WidgetsBindingObserver {
+  /// Obecny logiczny stan gry.
+  var gameState = GameState.spawning;
+
+  /// Przechowuje [gameState] sprzed pauzy.
+  GameState? _previousState;
+
+  /// Czasomierz dla animacji czyszczenia linii.
+  double lineClearTimer = 0.0;
+
+  /// Całkowity czas trwania animacji czyszczenia linii.
+  final double lineClearAnimationDuration = 0.5;
+
+  /// Lista indeksów rzędów (Y), które są pełne i czekają na usunięcie.
+  List<int> linesToClear = [];
+
+  /// Obecnie aktywne, kontrolowane przez gracza tetromino.
+  late TetrominoComponent currentTetromino;
+
+  /// Podstawowy czas (w sekundach) spadania klocka o jeden kafelek.
+  /// Wartość ta maleje wraz ze wzrostem poziomu.
+  double fallSpeed = 0.8;
+
+  /// Akumulator dla czasomierza spadania, resetowany po każdym opadnięciu kafelka.
+  double fallTimer = 0.0;
+
+  /// Akumuluje dystans przeciągnięcia w poziomie, aby określić ruch o kafelek.
+  double _dragAccumulatedX = 0.0;
+
+  /// Akumuluje dystans przeciągnięcia w pionie dla miękkiego opadania (soft drop).
+  double _dragAccumulatedY = 0.0;
+
+  /// ID wskaźnika dla głównego zdarzenia przeciągania (zapobiega konfliktom wielodotyku).
+  int? _dragPointerId;
+
+  /// Logiczna siatka 2D reprezentująca wszystkie wylądowane kafelki.
+  /// `null` oznacza pustą komórkę.
+  late List<List<Color?>> grid;
+
+  /// Notifier dla obecnego wyniku gracza.
+  final ValueNotifier<int> score = ValueNotifier(0);
+
+  /// Notifier dla obecnego poziomu gracza.
+  final ValueNotifier<int> level = ValueNotifier(1);
+
+  /// Całkowita liczba linii wyczyszczonych w bieżącej grze.
+  int totalLinesCleared = 0;
+
+  /// Liczba linii wymagana do awansu na kolejny poziom.
+  static const int linesPerLevel = 10;
+
+  /// Lista 5 najlepszych wyników, ładowana z [SharedPreferences].
+  List<int> highScores = [];
+
+  /// Notifier dla typu *następnego* tetromino (dla pola podglądu).
+  final ValueNotifier<String> nextTetrominoType = ValueNotifier('');
+
+  /// Notifier dla typu *przechowywanego* tetromino (dla pola "Hold").
+  final ValueNotifier<String?> heldTetrominoType = ValueNotifier(null);
+
+  /// Flaga kontrolująca, czy akcja "Hold" jest dostępna (resetowana przy spawnie nowego klocka).
+  bool _canHold = true;
+
+  /// Notifier dla ustawienia włączenia/wyłączenia muzyki.
+  final ValueNotifier<bool> isMusicEnabled = ValueNotifier(true);
+
+  /// Notifier dla ustawienia włączenia/wyłączenia efektów dźwiękowych (SFX).
+  final ValueNotifier<bool> isSfxEnabled = ValueNotifier(true);
+
+  /// Zwraca losowy typ tetromino (np. 'I', 'L') z mapy kształtów.
   String _getRandomTetrominoType() {
-    final keys = tetrominoShapes.keys.toList(); //
-    return (keys..shuffle()).first; //
+    final keys = tetrominoShapes.keys.toList();
+    return (keys..shuffle()).first;
   }
 
   @override
-  Color backgroundColor() => const Color(0xFF0A0A23); //
+  Color backgroundColor() => const Color(0xFF0A0A23);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    camera.viewport = FixedResolutionViewport(resolution: worldSize); //
-    camera.viewfinder.position = worldSize / 2; //
-    camera.viewfinder.anchor = Anchor.center; //
-    
-    await FlameAudio.audioCache.loadAll([ //
-      'theme.mp3', 'rotate.wav', 'land.wav', 'clear_line.mp3', 'game_over.mp3', //
+
+    // Ustawienia kamery i viewportu
+    camera.viewport = FixedResolutionViewport(resolution: worldSize);
+    camera.viewfinder.position = worldSize / 2;
+    camera.viewfinder.anchor = Anchor.center;
+
+    // Wstępne ładowanie wszystkich zasobów audio
+    await FlameAudio.audioCache.loadAll([
+      'theme.mp3',
+      'rotate.wav',
+      'land.wav',
+      'clear_line.mp3',
+      'game_over.mp3',
     ]);
-    
-    grid = List.generate(columns, (_) => List.filled(rows, null)); //
-    add(GradientBackgroundComponent()); //
-    add(GridBackground()); //
-    add(LandedTilesComponent()); //
-    await _loadHighScores(); //
-    
-    await _loadSettings(); //
-    
-    nextTetrominoType.value = _getRandomTetrominoType(); //
-    
-    spawnNewTetromino(); //
-    
-    if (isMusicEnabled.value) { //
-      FlameAudio.bgm.play('theme.mp3'); //
+
+    // Inicjalizacja logicznej siatki
+    grid = List.generate(columns, (_) => List.filled(rows, null));
+
+    // Dodanie komponentów tła
+    add(GradientBackgroundComponent());
+    add(GridBackground());
+
+    // Dodanie komponentu odpowiedzialnego za renderowanie siatki
+    add(LandedTilesComponent());
+
+    // Ładowanie trwałych danych
+    await _loadHighScores();
+    await _loadSettings();
+
+    // Ustawienie "następnego" klocka
+    nextTetrominoType.value = _getRandomTetrominoType();
+
+    // Rozpoczęcie gry przez stworzenie pierwszego klocka
+    spawnNewTetromino();
+
+    // Uruchomienie muzyki w tle, jeśli włączona
+    if (isMusicEnabled.value) {
+      FlameAudio.bgm.play('theme.mp3');
     }
 
-    WidgetsBinding.instance.addObserver(this); //
+    // Rejestracja obserwatora cyklu życia aplikacji
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void onRemove() {
-    WidgetsBinding.instance.removeObserver(this); //
+    // Wyrejestrowanie obserwatora cyklu życia
+    WidgetsBinding.instance.removeObserver(this);
     super.onRemove();
   }
 
+  /// Tworzy nowe [TetrominoComponent] na podstawie [nextTetrominoType].
   void spawnNewTetromino() {
-    // ... (bez zmian)
-    final String currentType = nextTetrominoType.value; //
-    final shape = List<Vector2>.from(tetrominoShapes[currentType]!); //
-    final color = tetrominoColors[currentType]!; //
-    final startPos = Vector2(4, 1); //
+    final String currentType = nextTetrominoType.value;
+    final shape = List<Vector2>.from(tetrominoShapes[currentType]!);
+    final color = tetrominoColors[currentType]!;
+    final startPos = Vector2(4, 1); // Start blisko góry i środka
 
-    if (!isValidPosition(startPos, shape)) { //
-      gameOver(); //
+    // Sprawdzenie "Block Out" (Game Over)
+    if (!isValidPosition(startPos, shape)) {
+      gameOver();
       return;
     }
-    
-    currentTetromino = TetrominoComponent( //
-      tetrominoType: currentType, //
-      shape: shape, //
-      color: color, //
-      startGridPosition: startPos, //
+
+    currentTetromino = TetrominoComponent(
+      tetrominoType: currentType,
+      shape: shape,
+      color: color,
+      startGridPosition: startPos,
     );
-    add(currentTetromino); //
-    _canHold = true; //
-    nextTetrominoType.value = _getRandomTetrominoType(); //
+    add(currentTetromino);
+
+    _canHold = true; // Zezwól na przechowanie tego nowego klocka
+    nextTetrominoType.value = _getRandomTetrominoType(); // Ustaw następny klocek
   }
 
+  /// Tworzy konkretny [TetrominoComponent] według [type].
+  /// Używane podczas zamiany klocka z pola "Hold".
   void spawnSpecificTetromino(String type) {
-    // ... (bez zmian)
-    final shape = List<Vector2>.from(tetrominoShapes[type]!); //
-    final color = tetrominoColors[type]!; //
-    final startPos = Vector2(4, 1); //
+    final shape = List<Vector2>.from(tetrominoShapes[type]!);
+    final color = tetrominoColors[type]!;
+    final startPos = Vector2(4, 1);
 
-    if (!isValidPosition(startPos, shape)) { //
-      gameOver(); //
+    // Sprawdzenie "Block Out" (Game Over)
+    if (!isValidPosition(startPos, shape)) {
+      gameOver();
       return;
     }
-    
-    currentTetromino = TetrominoComponent( //
-      tetrominoType: type, //
-      shape: shape, //
-      color: color, //
-      startGridPosition: startPos, //
+
+    currentTetromino = TetrominoComponent(
+      tetrominoType: type,
+      shape: shape,
+      color: color,
+      startGridPosition: startPos,
     );
-    add(currentTetromino); //
-    _canHold = true; //
+    add(currentTetromino);
+    _canHold = true; // Zawsze zezwalaj na "Hold" po spawnie (choć tu rzadko używane)
   }
 
+  /// Logika akcji "Hold" (przechowania klocka).
   void holdTetromino() {
-    // ... (bez zmian)
-    if (!_canHold || gameState != GameState.playing) return; //
-    _canHold = false; //
-    final String typeToHold = currentTetromino.tetrominoType; //
-    remove(currentTetromino); //
-    final String? previouslyHeldType = heldTetrominoType.value; //
+    if (!_canHold || gameState != GameState.playing) return;
+    _canHold = false;
+    final String typeToHold = currentTetromino.tetrominoType;
+    remove(currentTetromino); // Usuń obecny klocek z gry
 
-    gameState = GameState.spawning; //
-    _dragPointerId = null; //
-    
-    if (previouslyHeldType == null) { //
-      heldTetrominoType.value = typeToHold; //
-      spawnNewTetromino(); //
+    final String? previouslyHeldType = heldTetrominoType.value;
+
+    gameState = GameState.spawning; // Zmień stan, aby zapobiec konfliktom
+    _dragPointerId = null; // Zresetuj przeciąganie
+
+    if (previouslyHeldType == null) {
+      // Jeśli "Hold" jest pusty, schowaj tam obecny klocek i stwórz nowy
+      heldTetrominoType.value = typeToHold;
+      spawnNewTetromino();
     } else {
-      heldTetrominoType.value = typeToHold; //
-      spawnSpecificTetromino(previouslyHeldType); //
+      // Jeśli "Hold" coś zawiera, zamień klocki
+      heldTetrominoType.value = typeToHold;
+      spawnSpecificTetromino(previouslyHeldType);
     }
   }
-  
+
+  /// Obsługa długiego naciśnięcia (wywołuje "Hold").
   @override
   void onLongTapDown(TapDownEvent event) {
-    // ... (bez zmian)
-    if (gameState != GameState.playing) return; //
-    holdTetromino(); //
+    if (gameState != GameState.playing) return;
+    holdTetromino();
     super.onLongTapDown(event);
   }
-  
-  // ... (metody onDrag... bez zmian) ...
+
+  /// Rozpoczyna śledzenie przeciągania.
   @override
   void onDragStart(DragStartEvent event) {
-    if (gameState != GameState.playing) return; //
-    if (_dragPointerId == null) { //
-      _dragPointerId = event.pointerId; //
-      _dragAccumulatedX = 0.0; //
-      _dragAccumulatedY = 0.0; //
+    if (gameState != GameState.playing) return;
+    if (_dragPointerId == null) {
+      _dragPointerId = event.pointerId;
+      _dragAccumulatedX = 0.0;
+      _dragAccumulatedY = 0.0;
     }
     super.onDragStart(event);
   }
 
+  /// Aktualizuje pozycję klocka na podstawie przeciągania.
   @override
   void onDragUpdate(DragUpdateEvent event) {
-    if (gameState != GameState.playing) return; //
-    if (_dragPointerId == null) { //
-      _dragPointerId = event.pointerId; //
-      _dragAccumulatedX = 0.0; //
-      _dragAccumulatedY = 0.0; //
+    if (gameState != GameState.playing) return;
+    // Upewnij się, że mamy ID wskaźnika
+    if (_dragPointerId == null) {
+      _dragPointerId = event.pointerId;
+      _dragAccumulatedX = 0.0;
+      _dragAccumulatedY = 0.0;
     }
-    if (event.pointerId == _dragPointerId) { //
-      _dragAccumulatedX += event.canvasDelta.x; //
-      if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y; //
-      
-      if (_dragAccumulatedX.abs() > tileSize * 1.5) { //
-        final direction = _dragAccumulatedX > 0 ? 1 : -1; //
-        currentTetromino.tryMove(Vector2(direction.toDouble(), 0)); //
-        _dragAccumulatedX = 0.0; //
+    
+    // Przetwarzaj tylko zdarzenie od głównego wskaźnika
+    if (event.pointerId == _dragPointerId) {
+      _dragAccumulatedX += event.canvasDelta.x;
+      // Akumuluj tylko ruch w dół (dla soft drop)
+      if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y;
+
+      // Przesunięcie w poziomie
+      if (_dragAccumulatedX.abs() > tileSize * 1.5) {
+        final direction = _dragAccumulatedX > 0 ? 1 : -1;
+        currentTetromino.tryMove(Vector2(direction.toDouble(), 0));
+        _dragAccumulatedX = 0.0; // Resetuj akumulator
       }
-      
-      if (_dragAccumulatedY > tileSize) { //
-        currentTetromino.tryMove(Vector2(0, 1)); //
-        fallTimer = 0.0; //
-        _dragAccumulatedY = 0.0; //
+
+      // Przesunięcie w pionie (soft drop)
+      if (_dragAccumulatedY > tileSize) {
+        currentTetromino.tryMove(Vector2(0, 1));
+        fallTimer = 0.0; // Resetuj timer grawitacji
+        _dragAccumulatedY = 0.0; // Resetuj akumulator
       }
     }
     super.onDragUpdate(event);
   }
 
+  /// Kończy przeciąganie, resetuje stan.
   @override
   void onDragEnd(DragEndEvent event) {
-    if (gameState != GameState.playing) return; //
-    if (event.pointerId == _dragPointerId) { //
-      _dragPointerId = null; //
-      _dragAccumulatedX = 0.0; //
-      _dragAccumulatedY = 0.0; //
+    if (gameState != GameState.playing) return;
+    if (event.pointerId == _dragPointerId) {
+      _dragPointerId = null;
+      _dragAccumulatedX = 0.0;
+      _dragAccumulatedY = 0.0;
     }
     super.onDragEnd(event);
   }
 
+  /// Anuluje przeciąganie, resetuje stan.
   @override
   void onDragCancel(DragCancelEvent event) {
-     if (gameState != GameState.playing) return; //
-     if (event.pointerId == _dragPointerId) { //
-      _dragPointerId = null; //
-      _dragAccumulatedX = 0.0; //
-      _dragAccumulatedY = 0.0; //
+    if (gameState != GameState.playing) return;
+    if (event.pointerId == _dragPointerId) {
+      _dragPointerId = null;
+      _dragAccumulatedX = 0.0;
+      _dragAccumulatedY = 0.0;
     }
     super.onDragCancel(event);
   }
 
+  /// Obsługa dotknięcia (obraca klocek).
   @override
   void onTapUp(TapUpEvent event) {
-    // ... (bez zmian)
-    if (gameState == GameState.gameOver) { //
-      restartGame(); //
+    if (gameState == GameState.gameOver) {
+      // Jeśli gra się skończyła, dotknięcie restartuje grę
+      restartGame();
       return;
     }
-    if (gameState != GameState.playing) return; //
-    currentTetromino.rotate(); //
+    if (gameState != GameState.playing) return;
+    currentTetromino.rotate();
     super.onTapUp(event);
   }
 
+  /// Obsługuje zdarzenia cyklu życia aplikacji (np. minimalizowanie).
+  /// Służy do automatycznego pauzowania/wznawiania muzyki w tle.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
-    switch (state) { //
-      case AppLifecycleState.resumed: //
-        // Wznów tylko jeśli muzyka jest włączona, gra nie jest skończona,
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // Wznów muzykę tylko jeśli jest włączona, gra nie jest skończona,
         // ORAZ jeśli nie jesteśmy ręcznie spauzowani (w menu)
-        if (isMusicEnabled.value && gameState != GameState.gameOver && gameState != GameState.paused) { //
-          FlameAudio.bgm.resume(); //
+        if (isMusicEnabled.value &&
+            gameState != GameState.gameOver &&
+            gameState != GameState.paused) {
+          FlameAudio.bgm.resume();
         }
         break;
-      case AppLifecycleState.inactive: //
-      case AppLifecycleState.paused: //
-      case AppLifecycleState.hidden: //
-      case AppLifecycleState.detached: //
-        FlameAudio.bgm.pause(); //
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        // Zawsze pauzuj muzykę, gdy aplikacja traci fokus
+        FlameAudio.bgm.pause();
         break;
     }
   }
-  
+
+  /// Sprawdza, czy dana pozycja i kształt są prawidłowe.
+  /// (nie kolidują z wylądowanymi klockami i mieszczą się w granicach).
   bool isValidPosition(Vector2 tetrominoPos, List<Vector2> shape) {
-    // ... (bez zmian)
-    for (final offset in shape) { //
-      final tilePos = tetrominoPos + offset; //
-      final x = tilePos.x.toInt(); //
-      final y = tilePos.y.toInt(); //
-      if (x < 0 || x >= columns || y >= rows) return false; //
-      if (y >= 0) { //
-         if (grid[x][y] != null) return false; //
+    for (final offset in shape) {
+      final tilePos = tetrominoPos + offset;
+      final x = tilePos.x.toInt();
+      final y = tilePos.y.toInt();
+
+      // Sprawdzenie granic poziomych i dolnej granicy
+      if (x < 0 || x >= columns || y >= rows) return false;
+
+      // Sprawdzenie kolizji z siatką (tylko dla kafelków wewnątrz siatki, y >= 0)
+      if (y >= 0) {
+        if (grid[x][y] != null) return false;
       }
     }
-    return true; //
+    return true;
   }
 
+  /// "Ląduje" klockiem - przenosi jego kafelki do logicznej siatki [grid].
   void landTetromino(TetrominoComponent tetromino) {
-    if (isSfxEnabled.value) { //
-      FlameAudio.play('land.wav'); //
+    if (isSfxEnabled.value) {
+      FlameAudio.play('land.wav');
     }
-    for (final tile in tetromino.tiles) { //
-      final x = tile.gridPosition.x.toInt(); //
-      final y = tile.gridPosition.y.toInt(); //
-      if (x >= 0 && x < columns && y >= 0 && y < rows) { //
-        grid[x][y] = tile.color; //
+
+    // Przenieś kafelki z komponentu do siatki logicznej
+    for (final tile in tetromino.tiles) {
+      final x = tile.gridPosition.x.toInt();
+      final y = tile.gridPosition.y.toInt();
+      if (x >= 0 && x < columns && y >= 0 && y < rows) {
+        grid[x][y] = tile.color;
       }
     }
-    remove(tetromino); //
-    checkAndClearLines(); //
+    remove(tetromino); // Usuń komponent klocka z gry
+    checkAndClearLines(); // Sprawdź, czy jakaś linia została ukończona
   }
 
+  /// Sprawdza, czy któreś linie są pełne i inicjuje ich czyszczenie.
   void checkAndClearLines() {
-    // ... (logika szukania linii bez zmian) ...
-    List<int> fullLines = []; //
-    int y = rows - 1; //
-    while (y >= 0) { //
-      bool isLineFull = true; //
-      for (int x = 0; x < columns; x++) { //
-        if (grid[x][y] == null) { //
-          isLineFull = false; //
-          break; 
+    List<int> fullLines = [];
+    int y = rows - 1; // Zaczynamy sprawdzanie od dołu
+
+    while (y >= 0) {
+      bool isLineFull = true;
+      for (int x = 0; x < columns; x++) {
+        if (grid[x][y] == null) {
+          isLineFull = false;
+          break;
         }
       }
-      if (isLineFull) { //
-        fullLines.add(y); //
+      if (isLineFull) {
+        fullLines.add(y);
       }
-      y--; //
+      y--;
     }
 
-    if (fullLines.isNotEmpty) { //
-      if (isSfxEnabled.value) { //
-        FlameAudio.play('clear_line.mp3'); //
+    if (fullLines.isNotEmpty) {
+      if (isSfxEnabled.value) {
+        FlameAudio.play('clear_line.mp3');
       }
-      gameState = GameState.lineClearing; //
-      _dragPointerId = null; //
-      linesToClear.addAll(fullLines); //
-      lineClearTimer = 0.0; //
-      
-      children.whereType<LandedTilesComponent>().first.startAnimation(linesToClear); //
-      
-    } else if (gameState == GameState.playing) { //
-      gameState = GameState.spawning; //
-      _dragPointerId = null; //
-      spawnNewTetromino(); //
+      gameState = GameState.lineClearing;
+      _dragPointerId = null; // Zablokuj sterowanie
+      linesToClear.addAll(fullLines);
+      lineClearTimer = 0.0;
+
+      // Powiadom komponent siatki, aby rozpoczął animację
+      children
+          .whereType<LandedTilesComponent>()
+          .first
+          .startAnimation(linesToClear);
+    } else if (gameState == GameState.playing) {
+      // Jeśli nie ma linii do czyszczenia, od razu stwórz nowy klocek
+      gameState = GameState.spawning;
+      _dragPointerId = null;
+      spawnNewTetromino();
     }
   }
 
+  /// Usuwa jeden rząd (o indeksie [y]) z logicznej siatki
+  /// i przesuwa wszystko powyżej w dół.
   void clearLogicalLine(int y) {
-    // ... (bez zmian)
-    for (int r = y; r > 0; r--) { //
-      for (int c = 0; c < columns; c++) { //
-        grid[c][r] = grid[c][r - 1]; //
+    // Przesuń wszystkie rzędy powyżej 'y' o jeden w dół
+    for (int r = y; r > 0; r--) {
+      for (int c = 0; c < columns; c++) {
+        grid[c][r] = grid[c][r - 1];
       }
     }
-    for (int c = 0; c < columns; c++) { //
-      grid[c][0] = null; //
+    // Wyczyść górny rząd
+    for (int c = 0; c < columns; c++) {
+      grid[c][0] = null;
     }
   }
 
+  /// Dodaje punkty za wyczyszczone linie i zarządza awansem na wyższy poziom.
   void addScore(int linesCleared) {
-    // ... (bez zmian)
-    int points = 0; //
-    if (linesCleared == 1) { //
-      points = 100 * level.value; //
-    } else if (linesCleared == 2) { //
-      points = 300 * level.value; //
-    } else if (linesCleared == 3) { //
-      points = 500 * level.value; //
-    } else if (linesCleared >= 4) { //
-      points = 800 * level.value; //
+    int points = 0;
+    // Punktacja Tetrisa (uproszczona)
+    if (linesCleared == 1) {
+      points = 100 * level.value; // Single
+    } else if (linesCleared == 2) {
+      points = 300 * level.value; // Double
+    } else if (linesCleared == 3) {
+      points = 500 * level.value; // Triple
+    } else if (linesCleared >= 4) {
+      points = 800 * level.value; // Tetris!
     }
-    score.value += points; //
+    score.value += points;
 
-    totalLinesCleared += linesCleared; //
-    if (totalLinesCleared >= (level.value * linesPerLevel)) { //
-      level.value++; //
-      double newSpeed = 0.8 - (level.value - 1) * 0.05; //
-      fallSpeed = max(0.1, newSpeed); //
+    // Logika poziomów
+    totalLinesCleared += linesCleared;
+    if (totalLinesCleared >= (level.value * linesPerLevel)) {
+      level.value++;
+      // Zwiększ prędkość spadania
+      double newSpeed = 0.8 - (level.value - 1) * 0.05;
+      fallSpeed = max(0.1, newSpeed); // Ustal minimalną prędkość
     }
   }
 
+  /// Główna pętla gry, wywoływana co klatkę.
   @override
   void update(double dt) {
-    super.update(dt); 
-    
-    switch (gameState) { //
-      case GameState.playing: //
-        fallTimer += dt; //
-        if (fallTimer >= fallSpeed) { //
-          currentTetromino.tryMove(Vector2(0, 1)); //
-          fallTimer = 0.0; //
+    super.update(dt);
+
+    // Maszyna stanów gry
+    switch (gameState) {
+      case GameState.playing:
+        // Grawitacja
+        fallTimer += dt;
+        if (fallTimer >= fallSpeed) {
+          currentTetromino.tryMove(Vector2(0, 1)); // Przesuń w dół
+          fallTimer = 0.0; // Zresetuj timer
         }
         break;
-      case GameState.lineClearing: //
-        lineClearTimer += dt; //
-        children.whereType<LandedTilesComponent>().first.animationProgress = //
-            lineClearTimer / lineClearAnimationDuration; //
-        if (lineClearTimer >= lineClearAnimationDuration) { //
-          _finishLineClear(); //
+      case GameState.lineClearing:
+        // Animacja czyszczenia linii
+        lineClearTimer += dt;
+        // Aktualizuj postęp animacji w komponencie siatki
+        children.whereType<LandedTilesComponent>().first.animationProgress =
+            lineClearTimer / lineClearAnimationDuration;
+        
+        if (lineClearTimer >= lineClearAnimationDuration) {
+          _finishLineClear(); // Zakończ czyszczenie
         }
         break;
-      case GameState.spawning: //
-      case GameState.gameOver: //
-      // --- POPRAWKA: Dodano stan 'paused' ---
-      case GameState.paused: 
+      case GameState.spawning:
+      // Nic nie rób, czekaj aż komponent tetromino ustawi stan 'playing'
+      case GameState.gameOver:
+      // Nic nie rób, czekaj na restart
+      case GameState.paused:
         // Nic nie rób, czekaj na wznowienie
         break;
     }
   }
 
+  /// Kończy proces czyszczenia linii (po animacji).
   void _finishLineClear() {
-    // ... (bez zmian)
-    for (final y in linesToClear.reversed) { //
-      clearLogicalLine(y); //
+    // Usuń linie z siatki logicznej (w odwrotnej kolejności, aby uniknąć błędów indeksowania)
+    for (final y in linesToClear.reversed) {
+      clearLogicalLine(y);
     }
-    addScore(linesToClear.length); //
-    linesToClear.clear(); //
-    lineClearTimer = 0; //
-    children.whereType<LandedTilesComponent>().first.stopAnimation(); //
-    gameState = GameState.spawning; //
-    spawnNewTetromino(); //
+    addScore(linesToClear.length); // Dodaj punkty
+    
+    linesToClear.clear();
+    lineClearTimer = 0;
+    
+    // Zakończ animację w komponencie siatki
+    children.whereType<LandedTilesComponent>().first.stopAnimation();
+    
+    // Stwórz nowy klocek
+    gameState = GameState.spawning;
+    spawnNewTetromino();
   }
 
+  /// Inicjuje stan końca gry.
   Future<void> gameOver() async {
-    gameState = GameState.gameOver; //
-    _dragPointerId = null; //
-    FlameAudio.bgm.stop(); //
-    
-    if (isSfxEnabled.value) { //
-      FlameAudio.play('game_over.mp3'); //
+    gameState = GameState.gameOver;
+    _dragPointerId = null; // Zablokuj sterowanie
+    FlameAudio.bgm.stop();
+
+    if (isSfxEnabled.value) {
+      FlameAudio.play('game_over.mp3');
     }
-    
-    await _updateAndSaveHighScores(score.value); //
-    final menu = GameOverMenuComponent( //
-      score: score.value, //
-      highScores: highScores, //
+
+    // Zapisz wynik i wyświetl menu
+    await _updateAndSaveHighScores(score.value);
+    final menu = GameOverMenuComponent(
+      score: score.value,
+      highScores: highScores,
     );
-    add(menu); //
+    add(menu);
   }
 
+  /// Resetuje wszystkie stany gry do wartości początkowych.
   void restartGame() {
-    // ... (reszta bez zmian)
-    grid = List.generate(columns, (_) => List.filled(rows, null)); //
-    removeAll(children.whereType<GameOverMenuComponent>()); //
-    removeAll(children.whereType<TetrominoComponent>()); //
+    // Wyczyść siatkę logiczną
+    grid = List.generate(columns, (_) => List.filled(rows, null));
     
-    score.value = 0; //
-    level.value = 1; //
-    totalLinesCleared = 0; //
-    fallSpeed = 0.8; //
-    
-    gameState = GameState.spawning; //
-    heldTetrominoType.value = null; //
-    _canHold = true; //
-    _dragPointerId = null; //
-    
-    nextTetrominoType.value = _getRandomTetrominoType(); //
-    spawnNewTetromino(); //
+    // Usuń menu i wszystkie pozostałe klocki
+    removeAll(children.whereType<GameOverMenuComponent>());
+    removeAll(children.whereType<TetrominoComponent>());
 
-    FlameAudio.bgm.stop(); //
-    if (isMusicEnabled.value) { //
-      FlameAudio.bgm.play('theme.mp3'); //
+    // Zresetuj statystyki
+    score.value = 0;
+    level.value = 1;
+    totalLinesCleared = 0;
+    fallSpeed = 0.8;
+
+    // Zresetuj stan gry
+    gameState = GameState.spawning;
+    heldTetrominoType.value = null;
+    _canHold = true;
+    _dragPointerId = null;
+
+    // Przygotuj nowy zestaw klocków
+    nextTetrominoType.value = _getRandomTetrominoType();
+    spawnNewTetromino();
+
+    // Uruchom ponownie muzykę
+    FlameAudio.bgm.stop();
+    if (isMusicEnabled.value) {
+      FlameAudio.bgm.play('theme.mp3');
     }
   }
 
+  // --- Zarządzanie Trwałymi Danymi (SharedPreferences) ---
+
+  /// Wczytuje najlepsze wyniki z pamięci urządzenia.
   Future<void> _loadHighScores() async {
-    // ... (bez zmian)
-    final prefs = await SharedPreferences.getInstance(); //
-    final scoreStrings = prefs.getStringList('highScores') ?? []; //
-    highScores = scoreStrings.map((s) => int.parse(s)).toList(); //
+    final prefs = await SharedPreferences.getInstance();
+    final scoreStrings = prefs.getStringList('highScores') ?? [];
+    highScores = scoreStrings.map((s) => int.parse(s)).toList();
   }
+
+  /// Aktualizuje listę najlepszych wyników i zapisuje ją w pamięci.
   Future<void> _updateAndSaveHighScores(int newScore) async {
-    // ... (bez zmian)
-    highScores.add(newScore); //
-    highScores.sort((a, b) => b.compareTo(a)); //
-    highScores = highScores.take(5).toList(); //
-    final prefs = await SharedPreferences.getInstance(); //
-    final scoreStrings = highScores.map((s) => s.toString()).toList(); //
-    await prefs.setStringList('highScores', scoreStrings); //
+    highScores.add(newScore);
+    highScores.sort((a, b) => b.compareTo(a)); // Sortuj malejąco
+    highScores = highScores.take(5).toList(); // Zachowaj tylko top 5
+    
+    final prefs = await SharedPreferences.getInstance();
+    final scoreStrings = highScores.map((s) => s.toString()).toList();
+    await prefs.setStringList('highScores', scoreStrings);
   }
 
-  // --- Metody Zarządzania Ustawieniami ---
-
+  /// Wczytuje ustawienia audio z pamięci urządzenia.
   Future<void> _loadSettings() async {
-    // ... (bez zmian)
-    final prefs = await SharedPreferences.getInstance(); //
-    isMusicEnabled.value = prefs.getBool('isMusicEnabled') ?? true; //
-    isSfxEnabled.value = prefs.getBool('isSfxEnabled') ?? true; //
+    final prefs = await SharedPreferences.getInstance();
+    isMusicEnabled.value = prefs.getBool('isMusicEnabled') ?? true;
+    isSfxEnabled.value = prefs.getBool('isSfxEnabled') ?? true;
   }
 
+  /// Zapisuje bieżące ustawienia audio w pamięci urządzenia.
   Future<void> _saveSettings() async {
-    // ... (bez zmian)
-    final prefs = await SharedPreferences.getInstance(); //
-    await prefs.setBool('isMusicEnabled', isMusicEnabled.value); //
-    await prefs.setBool('isSfxEnabled', isSfxEnabled.value); //
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isMusicEnabled', isMusicEnabled.value);
+    await prefs.setBool('isSfxEnabled', isSfxEnabled.value);
   }
 
+  /// Przełącza stan muzyki (wł./wył.).
   void toggleMusic() {
-    // ... (bez zmian)
-    isMusicEnabled.value = !isMusicEnabled.value; //
-    if (isMusicEnabled.value) { //
-      if (gameState != GameState.gameOver) { //
-        FlameAudio.bgm.play('theme.mp3'); //
+    isMusicEnabled.value = !isMusicEnabled.value;
+    if (isMusicEnabled.value) {
+      // Odtwórz tylko, jeśli gra nie jest skończona
+      if (gameState != GameState.gameOver) {
+        FlameAudio.bgm.play('theme.mp3');
       }
     } else {
-      FlameAudio.bgm.stop(); //
+      FlameAudio.bgm.stop();
     }
-    _saveSettings(); //
+    _saveSettings();
   }
 
+  /// Przełącza stan efektów dźwiękowych (wł./wył.).
   void toggleSfx() {
-    // ... (bez zmian)
-    isSfxEnabled.value = !isSfxEnabled.value; //
-    _saveSettings(); //
+    isSfxEnabled.value = !isSfxEnabled.value;
+    _saveSettings();
   }
-  
-  // --- NOWE METODY PAUZY ---
-  
+
+  // --- Zarządzanie Stanem Pauzy ---
+
+  /// Pauzuje grę, zapamiętując poprzedni stan.
   void pauseGame() {
     // Nie pauzuj, jeśli już jest zapauzowana lub gra się skończyła
     if (gameState == GameState.paused || gameState == GameState.gameOver) return;
 
     _previousState = gameState;
     gameState = GameState.paused;
-    
+
     // Zatrzymaj też muzykę BGM podczas pauzy
     FlameAudio.bgm.pause();
   }
 
+  /// Wznawia grę ze stanu pauzy.
   void resumeGame() {
     if (gameState != GameState.paused) return; // Wznów tylko, jeśli była pauza
 
-    gameState = _previousState ?? GameState.spawning; // Wróć do poprzedniego stanu
+    // Wróć do poprzedniego stanu (lub domyślnego 'spawning', jeśli coś poszło nie tak)
+    gameState = _previousState ?? GameState.spawning;
     _previousState = null;
-    
+
     // Wznów muzykę, jeśli jest włączona i gra nie jest skończona
     if (isMusicEnabled.value && gameState != GameState.gameOver) {
       FlameAudio.bgm.resume();
     }
   }
-
 } // --- Koniec klasy TetrisGame ---
 
+// --- Komponenty Tła ---
 
-// (Komponenty tła bez zmian)
-class GradientBackgroundComponent extends PositionComponent with HasGameReference<TetrisGame> {
-// ... (bez zmian)
-  GradientBackgroundComponent() { //
-    size = worldSize; //
+/// Prosty komponent rysujący gradient jako tło gry.
+class GradientBackgroundComponent extends PositionComponent
+    with HasGameReference<TetrisGame> {
+  GradientBackgroundComponent() {
+    size = worldSize; // Rozmiar tła równy światu gry
   }
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas); 
-    final gradient = LinearGradient( //
-      begin: Alignment.topCenter, //
-      end: Alignment.bottomCenter, //
-      colors: [ //
-        const Color(0xFF0A0A23), //
-        Colors.black,            //
-      ],
-    );
-    final paint = Paint()..shader = gradient.createShader(size.toRect()); //
-    canvas.drawRect(size.toRect(), paint); //
-  }
-}
-
-class GridBackground extends PositionComponent {
-// ... (bez zmian)
-  GridBackground() { size = worldSize; } //
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final paint = Paint() //
-      ..color = Colors.blue.shade900.withAlpha(128) //
-      ..style = PaintingStyle.stroke //
-      ..strokeWidth = 0.5; //
-    for (var x = 0.0; x <= size.x; x += tileSize) { //
-      canvas.drawLine(Offset(x, 0), Offset(x, size.y), paint); //
+    final gradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        const Color(0xFF0A0A23), // Ciemnoniebieski
+        Colors.black, // Czarny
+      ],
+    );
+    final paint = Paint()..shader = gradient.createShader(size.toRect());
+    canvas.drawRect(size.toRect(), paint);
+  }
+}
+
+/// Prosty komponent rysujący siatkę w tle.
+class GridBackground extends PositionComponent {
+  GridBackground() {
+    size = worldSize;
+  }
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final paint = Paint()
+      ..color = Colors.blue.shade900.withAlpha(128)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // Linie pionowe
+    for (var x = 0.0; x <= size.x; x += tileSize) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.y), paint);
     }
-    for (var y = 0.0; y <= size.y; y += tileSize) { //
-      canvas.drawLine(Offset(0, y), Offset(size.x, y), paint); //
+    // Linie poziome
+    for (var y = 0.0; y <= size.y; y += tileSize) {
+      canvas.drawLine(Offset(0, y), Offset(size.x, y), paint);
     }
   }
 }
