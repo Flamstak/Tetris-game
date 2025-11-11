@@ -1,5 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+// --- DODANO IMPORT HAPTYKI ---
+import 'package:flutter/services.dart';
 import 'package:flame/components.dart';
 import 'package:flame/camera.dart';
 import 'package:flame/events.dart';
@@ -29,6 +31,17 @@ enum GameState {
 
   /// Gra jest ręcznie zapauzowana (np. w menu ustawień).
   paused
+}
+
+// --- DODANO ENUM HAPTYKI ---
+/// Definiuje typy haptyki dla różnych zdarzeń w grze.
+enum HapticType {
+  rotate, // Obrót
+  move,   // Przesunięcie
+  land,   // Lądowanie
+  hold,   // Przechowanie
+  lineClear, // Czyszczenie linii
+  gameOver, // Koniec gry
 }
 
 /// Główna klasa gry Tetris, zbudowana przy użyciu Flame.
@@ -191,6 +204,9 @@ class TetrisGame extends FlameGame
 
     _canHold = true; // Zezwól na przechowanie tego nowego klocka
     nextTetrominoType.value = _getRandomTetrominoType(); // Ustaw następny klocek
+
+    // --- POPRAWKA BLOKOWANIA ---
+    // Natychmiast ustawiamy stan 'playing', aby odblokować sterowanie.
     gameState = GameState.playing;
   }
 
@@ -216,12 +232,17 @@ class TetrisGame extends FlameGame
     add(currentTetromino);
     _canHold = true; // Zawsze zezwalaj na "Hold" po spawnie (choć tu rzadko używane)
 
+    // --- POPRAWKA BLOKOWANIA ---
+    // Natychmiast ustawiamy stan 'playing', tak jak w 'spawnNewTetromino'.
     gameState = GameState.playing;
   }
 
   /// Logika akcji "Hold" (przechowania klocka).
   void holdTetromino() {
     if (!_canHold || gameState != GameState.playing) return;
+    
+    // --- DODANO HAPTYKĘ ---
+    triggerHaptics(HapticType.hold);
     _canHold = false;
     final String typeToHold = currentTetromino.tetrominoType;
     remove(currentTetromino); // Usuń obecny klocek z gry
@@ -272,7 +293,7 @@ class TetrisGame extends FlameGame
       _dragAccumulatedX = 0.0;
       _dragAccumulatedY = 0.0;
     }
-    
+
     // Przetwarzaj tylko zdarzenie od głównego wskaźnika
     if (event.pointerId == _dragPointerId) {
       _dragAccumulatedX += event.canvasDelta.x;
@@ -283,6 +304,9 @@ class TetrisGame extends FlameGame
       if (_dragAccumulatedX.abs() > tileSize * 1.5) {
         final direction = _dragAccumulatedX > 0 ? 1 : -1;
         currentTetromino.tryMove(Vector2(direction.toDouble(), 0));
+        
+        // --- DODANO HAPTYKĘ ---
+        triggerHaptics(HapticType.move);
         _dragAccumulatedX = 0.0; // Resetuj akumulator
       }
 
@@ -329,6 +353,10 @@ class TetrisGame extends FlameGame
       return;
     }
     if (gameState != GameState.playing) return;
+    
+    // Logika haptyki dla obrotu znajduje się w
+    // `tetromino_component.dart` w metodzie `rotate()`,
+    // ponieważ tylko komponent wie, czy obrót się powiódł.
     currentTetromino.rotate();
     super.onTapUp(event);
   }
@@ -383,6 +411,8 @@ class TetrisGame extends FlameGame
     if (isSfxEnabled.value) {
       FlameAudio.play('land.wav');
     }
+    // --- DODANO HAPTYKĘ ---
+    triggerHaptics(HapticType.land);
 
     // Przenieś kafelki z komponentu do siatki logicznej
     for (final tile in tetromino.tiles) {
@@ -419,6 +449,9 @@ class TetrisGame extends FlameGame
       if (isSfxEnabled.value) {
         FlameAudio.play('clear_line.mp3');
       }
+      // --- DODANO HAPTYKĘ ---
+      triggerHaptics(HapticType.lineClear);
+      
       gameState = GameState.lineClearing;
       _dragPointerId = null; // Zablokuj sterowanie
       linesToClear.addAll(fullLines);
@@ -498,13 +531,13 @@ class TetrisGame extends FlameGame
         // Aktualizuj postęp animacji w komponencie siatki
         children.whereType<LandedTilesComponent>().first.animationProgress =
             lineClearTimer / lineClearAnimationDuration;
-        
+
         if (lineClearTimer >= lineClearAnimationDuration) {
           _finishLineClear(); // Zakończ czyszczenie
         }
         break;
       case GameState.spawning:
-      // Nic nie rób, czekaj aż komponent tetromino ustawi stan 'playing'
+      // Nic nie rób, czekaj (stan jest już ustawiony na 'playing' w 'spawnNewTetromino')
       case GameState.gameOver:
       // Nic nie rób, czekaj na restart
       case GameState.paused:
@@ -520,13 +553,13 @@ class TetrisGame extends FlameGame
       clearLogicalLine(y);
     }
     addScore(linesToClear.length); // Dodaj punkty
-    
+
     linesToClear.clear();
     lineClearTimer = 0;
-    
+
     // Zakończ animację w komponencie siatki
     children.whereType<LandedTilesComponent>().first.stopAnimation();
-    
+
     // Stwórz nowy klocek
     gameState = GameState.spawning;
     spawnNewTetromino();
@@ -536,6 +569,9 @@ class TetrisGame extends FlameGame
   Future<void> gameOver() async {
     gameState = GameState.gameOver;
     _dragPointerId = null; // Zablokuj sterowanie
+    
+    // --- DODANO HAPTYKĘ ---
+    triggerHaptics(HapticType.gameOver);
     FlameAudio.bgm.stop();
 
     if (isSfxEnabled.value) {
@@ -555,7 +591,7 @@ class TetrisGame extends FlameGame
   void restartGame() {
     // Wyczyść siatkę logiczną
     grid = List.generate(columns, (_) => List.filled(rows, null));
-    
+
     // Usuń menu i wszystkie pozostałe klocki
     removeAll(children.whereType<GameOverMenuComponent>());
     removeAll(children.whereType<TetrominoComponent>());
@@ -597,7 +633,7 @@ class TetrisGame extends FlameGame
     highScores.add(newScore);
     highScores.sort((a, b) => b.compareTo(a)); // Sortuj malejąco
     highScores = highScores.take(5).toList(); // Zachowaj tylko top 5
-    
+
     final prefs = await SharedPreferences.getInstance();
     final scoreStrings = highScores.map((s) => s.toString()).toList();
     await prefs.setStringList('highScores', scoreStrings);
@@ -653,7 +689,7 @@ class TetrisGame extends FlameGame
 
   /// Wznawia grę ze stanu pauzy.
   void resumeGame() {
-    if (gameState != GameState.paused) return; // Wznów tylko, jeśli była pauza
+    if (gameState != GameState.paused) return; // Wznów only, jeśli była pauza
 
     // Wróć do poprzedniego stanu (lub domyślnego 'spawning', jeśli coś poszło nie tak)
     gameState = _previousState ?? GameState.spawning;
@@ -662,6 +698,36 @@ class TetrisGame extends FlameGame
     // Wznów muzykę, jeśli jest włączona i gra nie jest skończona
     if (isMusicEnabled.value && gameState != GameState.gameOver) {
       FlameAudio.bgm.resume();
+    }
+  }
+
+  // --- NOWA METODA HAPTYKI ---
+  /// Wywołuje określony typ wibracji (haptyki).
+  /// Jest to kontrolowane przez ustawienie 'isSfxEnabled'.
+  void triggerHaptics(HapticType type) {
+    // Jeśli SFX są wyłączone, haptyka też jest wyłączona.
+    if (!isSfxEnabled.value) return;
+
+    // Używamy różnych typów wibracji w zależności od akcji
+    switch (type) {
+      case HapticType.rotate:
+      case HapticType.move:
+      case HapticType.hold:
+        // Bardzo lekkie "kliknięcie", idealne do szybkich, powtarzalnych akcji
+        HapticFeedback.selectionClick();
+        break;
+      case HapticType.land:
+        // Subtelne, ale wyczuwalne "uderzenie"
+        HapticFeedback.lightImpact();
+        break;
+      case HapticType.lineClear:
+        // Mocniejsze "uderzenie" za nagrodę
+        HapticFeedback.mediumImpact();
+        break;
+      case HapticType.gameOver:
+        // Mocne, długie uderzenie informujące o porażce
+        HapticFeedback.heavyImpact();
+        break;
     }
   }
 } // --- Koniec klasy TetrisGame ---

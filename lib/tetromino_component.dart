@@ -110,6 +110,7 @@ class TetrominoComponent extends PositionComponent
     if (game.isValidPosition(gridPosition, newShape)) {
       shape = newShape;
       updateTilePositions();
+      game.triggerHaptics(HapticType.rotate);
 
       // Odtwórz dźwięk obrotu, jeśli SFX są włączone
       if (game.isSfxEnabled.value) {
