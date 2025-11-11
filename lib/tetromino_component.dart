@@ -64,8 +64,7 @@ class TetrominoComponent extends PositionComponent
     }
     updateGhostPosition(); // Ustaw "ducha" na właściwej pozycji
 
-    // Poinformuj grę, że komponent jest w pełni załadowany i można grać.
-    game.gameState = GameState.playing;
+    // Poinformuj grę, że komponent jest w pełni załadowany i można grać
   }
 
   /// Aktualizuje pozycje wszystkich kafelków na podstawie [gridPosition] i [shape].

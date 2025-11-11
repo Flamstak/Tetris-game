@@ -191,6 +191,7 @@ class TetrisGame extends FlameGame
 
     _canHold = true; // Zezwól na przechowanie tego nowego klocka
     nextTetrominoType.value = _getRandomTetrominoType(); // Ustaw następny klocek
+    gameState = GameState.playing;
   }
 
   /// Tworzy konkretny [TetrominoComponent] według [type].
@@ -214,6 +215,8 @@ class TetrisGame extends FlameGame
     );
     add(currentTetromino);
     _canHold = true; // Zawsze zezwalaj na "Hold" po spawnie (choć tu rzadko używane)
+
+    gameState = GameState.playing;
   }
 
   /// Logika akcji "Hold" (przechowania klocka).
