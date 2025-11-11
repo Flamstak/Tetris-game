@@ -144,7 +144,7 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
   showDialog(
     context: context,
     // Nie pozwala zamknąć dialogu kliknięciem obok
-    barrierDismissible: false,
+    barrierDismissible: false, 
     builder: (BuildContext dialogContext) {
       return AlertDialog(
         backgroundColor: Colors.grey[900],
@@ -153,7 +153,7 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
           side: BorderSide(color: Colors.blue.shade900.withAlpha(128), width: 2.0),
         ),
         title: const Text(
-          'Settings',
+          'Paused', // Zmieniono tytuł na "Pauza"
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'PressStart2P',
@@ -161,42 +161,97 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
             fontSize: 18,
           ),
         ),
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            // Przycisk Muzyki
-            ValueListenableBuilder<bool>(
-              valueListenable: game.isMusicEnabled,
-              builder: (context, isEnabled, child) {
-                return IconButton(
-                  icon: Icon(
-                    isEnabled ? Icons.music_note : Icons.music_off,
-                    color: Colors.white,
-                    size: 40,
+        
+        content: Container(
+          width: double.maxFinite, // Dopasuj do szerokości okna
+          child: SingleChildScrollView( // Aby można było przewijać
+            child: ListBody( // Używamy ListBody zamiast Column
+              children: <Widget>[
+                // --- Sekcja Audio (bez zmian) ---
+                const Text(
+                  'Audio',
+                  style: TextStyle(
+                      fontFamily: 'PressStart2P',
+                      color: Colors.white70,
+                      fontSize: 14),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Przycisk Muzyki
+                      ValueListenableBuilder<bool>(
+                        valueListenable: game.isMusicEnabled,
+                        builder: (context, isEnabled, child) {
+                          return IconButton(
+                            icon: Icon(
+                              isEnabled ? Icons.music_note : Icons.music_off,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                            onPressed: () => game.toggleMusic(),
+                          );
+                        },
+                      ),
+                      // Przycisk SFX
+                      ValueListenableBuilder<bool>(
+                        valueListenable: game.isSfxEnabled,
+                        builder: (context, isEnabled, child) {
+                          return IconButton(
+                            icon: Icon(
+                              isEnabled ? Icons.volume_up : Icons.volume_off,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                            onPressed: () => game.toggleSfx(),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  onPressed: () => game.toggleMusic(),
-                );
-              },
-            ),
+                ),
+                
+                const Divider(color: Colors.white24),
+                const SizedBox(height: 10),
 
-            // Przycisk SFX
-            ValueListenableBuilder<bool>(
-              valueListenable: game.isSfxEnabled,
-              builder: (context, isEnabled, child) {
-                return IconButton(
-                  icon: Icon(
-                    isEnabled ? Icons.volume_up : Icons.volume_off,
-                    color: Colors.white,
-                    size: 40,
-                  ),
-                  onPressed: () => game.toggleSfx(),
-                );
-              },
+                // --- SEKCJA INSTRUKCJI ---
+                const Text(
+                  'How to Play',
+                  style: TextStyle(
+                      fontFamily: 'PressStart2P',
+                      color: Colors.white70,
+                      fontSize: 14),
+                ),
+                const SizedBox(height: 15),
+                _InstructionRow(
+                  icon: Icons.touch_app_outlined,
+                  action: 'Rotate',
+                  description: 'Tap anywhere',
+                ),
+                _InstructionRow(
+                  icon: Icons.arrow_right_alt,
+                  action: 'Move',
+                  description: 'Drag left or right',
+                ),
+                _InstructionRow(
+                  icon: Icons.arrow_downward,
+                  action: 'Soft Drop',
+                  description: 'Drag down',
+                ),
+                // --- POPRAWKA TUTAJ ---
+                _InstructionRow(
+                  icon: Icons.back_hand_outlined, // Zamiast 'touch_and_hold_outlined'
+                  action: 'Hold',
+                  description: 'Press and hold',
+                ),
+                // ---------------------
+              ],
             ),
-          ],
+          ),
         ),
+
         actions: [
-          // Przycisk zamykania
           TextButton(
             child: const Text(
               'Close',
@@ -215,12 +270,60 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
     },
   ).then((_) {
     // `.then` wykonuje się PO zamknięciu dialogu
-    // Wznów grę PO zamknięciu dialogu
+    // Wznów grę
     game.resumeGame();
   });
 }
 
-// --- Widżety UI dla Pasków Bocznych ---
+// --- NOWY WIDŻET POMOCNICZY DLA INSTRUKCJI ---
+// (Umieść go na dole pliku main.dart)
+class _InstructionRow extends StatelessWidget {
+  final IconData icon;
+  final String action;
+  final String description;
+
+  const _InstructionRow({
+    required this.icon,
+    required this.action,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const SizedBox(width: 15),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                action,
+                style: const TextStyle(
+                  fontFamily: 'PressStart2P',
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                description,
+                style: const TextStyle(
+                  fontFamily: 'PressStart2P',
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Widżety UI dla Pasków Bocznych (BEZ ZMIAN) ---
 
 /// Widżet Fluttera wyświetlający przechowany klocek ('Hold').
 class HoldPieceBox extends StatelessWidget {
