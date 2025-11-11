@@ -10,7 +10,7 @@ Nowoczesna implementacja klasycznej gry Tetris, zbudowana od zera przy użyciu s
 
 > **Uwaga:** Oto podgląd rozgrywki!
 >
-> ![Podgląd Rozgrywki](assets/image/gameplay.jpg)
+> <img src="assets/image/gameplay.jpg" alt="Podgląd Rozgrywki" width="500"/>
 
 ## 🎮 Kluczowe Funkcje
 
