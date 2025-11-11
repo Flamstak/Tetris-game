@@ -72,13 +72,13 @@ class GameOverMenuComponent extends PositionComponent {
 
   /// Prywatna metoda budująca sformatowany tekst dla menu.
   String _buildGameOverText() {
-    String text = 'GAME OVER\nTwój wynik: $score\n\nNAJLEPSZE WYNIKI:\n';
+    String text = 'GAME OVER\nYour score: $score\n\nHIGH SCORES:\n';
 
     for (int i = 0; i < highScores.length; i++) {
       text += '${i + 1}. ${highScores[i]}\n';
     }
 
-    text += '\n(Stuknij by zrestartować)';
+    text += '\n(Tap to restart)';
     return text;
   }
 }

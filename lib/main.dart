@@ -153,7 +153,7 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
           side: BorderSide(color: Colors.blue.shade900.withAlpha(128), width: 2.0),
         ),
         title: const Text(
-          'Ustawienia',
+          'Settings',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'PressStart2P',
@@ -199,7 +199,7 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
           // Przycisk zamykania
           TextButton(
             child: const Text(
-              'Zamknij',
+              'Close',
               style: TextStyle(
                   fontFamily: 'PressStart2P',
                   color: Colors.blueAccent,
