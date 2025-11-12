@@ -121,6 +121,9 @@ class TetrisGame extends FlameGame
   /// Notifier dla ustawienia włączenia/wyłączenia efektów dźwiękowych (SFX).
   final ValueNotifier<bool> isSfxEnabled = ValueNotifier(true);
 
+  /// Notifier dla ustawienia włączenia/wyłączenia wibracji (haptyki).
+  final ValueNotifier<bool> isHapticsEnabled = ValueNotifier(true);
+
   /// Zwraca losowy typ tetromino (np. 'I', 'L') z mapy kształtów.
   String _getRandomTetrominoType() {
     final keys = tetrominoShapes.keys.toList();
@@ -300,7 +303,7 @@ class TetrisGame extends FlameGame
     // Przetwarzaj tylko zdarzenie od głównego wskaźnika
     if (event.pointerId == _dragPointerId) {
       _dragAccumulatedX += event.canvasDelta.x;
-      // Akumuluj tylko ruch w dół (dla soft drop)
+      // Akumuluj only ruch w dół (dla soft drop)
       if (event.canvasDelta.y > 0) _dragAccumulatedY += event.canvasDelta.y;
 
       // Przesunięcie w poziomie
@@ -372,7 +375,7 @@ class TetrisGame extends FlameGame
 
     switch (state) {
       case AppLifecycleState.resumed:
-        // Wznów muzykę tylko jeśli jest włączona, gra nie jest skończona,
+        // Wznów muzykę only jeśli jest włączona, gra nie jest skończona,
         // ORAZ jeśli nie jesteśmy ręcznie spauzowani (w menu)
         if (isMusicEnabled.value &&
             gameState != GameState.gameOver &&
@@ -657,6 +660,7 @@ class TetrisGame extends FlameGame
     final prefs = await SharedPreferences.getInstance();
     isMusicEnabled.value = prefs.getBool('isMusicEnabled') ?? true;
     isSfxEnabled.value = prefs.getBool('isSfxEnabled') ?? true;
+    isHapticsEnabled.value = prefs.getBool('isHapticsEnabled') ?? true;
   }
 
   /// Zapisuje bieżące ustawienia audio w pamięci urządzenia.
@@ -664,6 +668,7 @@ class TetrisGame extends FlameGame
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isMusicEnabled', isMusicEnabled.value);
     await prefs.setBool('isSfxEnabled', isSfxEnabled.value);
+    await prefs.setBool('isHapticsEnabled', isHapticsEnabled.value);
   }
 
   /// Przełącza stan muzyki (wł./wył.).
@@ -683,6 +688,12 @@ class TetrisGame extends FlameGame
   /// Przełącza stan efektów dźwiękowych (wł./wył.).
   void toggleSfx() {
     isSfxEnabled.value = !isSfxEnabled.value;
+    _saveSettings();
+  }
+
+  /// Przełącza stan wibracji (wł./wył.).
+  void toggleHaptics() {
+    isHapticsEnabled.value = !isHapticsEnabled.value;
     _saveSettings();
   }
 
@@ -717,8 +728,8 @@ class TetrisGame extends FlameGame
   // --- ZAKTUALIZOWANA METODA HAPTYKI (Wersja Hybrydowa) ---
   /// Wywołuje określony typ wibracji (haptyki).
   Future<void> triggerHaptics(HapticType type) async {
-    // Jeśli SFX są wyłączone, haptyka też jest wyłączona.
-    if (!isSfxEnabled.value) return;
+    // Jeśli haptyka jest wyłączona, przerwij.
+    if (!isHapticsEnabled.value) return;
 
     // --- NOWA LOGIKA DLA GAME OVER ---
     // Dla Game Over używamy potężnego pakietu 'vibration',
@@ -726,7 +737,7 @@ class TetrisGame extends FlameGame
     if (type == HapticType.gameOver) {
       // Sprawdź, czy urządzenie w ogóle ma wibracje
       bool? hasVibrator = await Vibration.hasVibrator();
-      if (hasVibrator) {
+      if (hasVibrator) { // Użyj ?? false dla bezpieczeństwa
         Vibration.vibrate(pattern: [0, 150, 350, 150, 350, 800]);
       }
       // Ważne: Zakończ funkcję tutaj, aby nie przechodzić do 'switch'

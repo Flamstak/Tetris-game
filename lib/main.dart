@@ -144,13 +144,14 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
   showDialog(
     context: context,
     // Nie pozwala zamknąć dialogu kliknięciem obok
-    barrierDismissible: false, 
+    barrierDismissible: false,
     builder: (BuildContext dialogContext) {
       return AlertDialog(
         backgroundColor: Colors.grey[900],
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
-          side: BorderSide(color: Colors.blue.shade900.withAlpha(128), width: 2.0),
+          side:
+              BorderSide(color: Colors.blue.shade900.withAlpha(128), width: 2.0),
         ),
         title: const Text(
           'Paused', // Zmieniono tytuł na "Pauza"
@@ -161,15 +162,16 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
             fontSize: 18,
           ),
         ),
-        
         content: Container(
           width: double.maxFinite, // Dopasuj do szerokości okna
-          child: SingleChildScrollView( // Aby można było przewijać
-            child: ListBody( // Używamy ListBody zamiast Column
+          child: SingleChildScrollView(
+            // Aby można było przewijać
+            child: ListBody(
+              // Używamy ListBody zamiast Column
               children: <Widget>[
-                // --- Sekcja Audio (bez zmian) ---
+                // --- Sekcja Audio (ze zmianą) ---
                 const Text(
-                  'Audio',
+                  'Audio & Haptics',
                   style: TextStyle(
                       fontFamily: 'PressStart2P',
                       color: Colors.white70,
@@ -208,10 +210,24 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
                           );
                         },
                       ),
+                      // Przycisk Haptyki (NOWY)
+                      ValueListenableBuilder<bool>(
+                        valueListenable: game.isHapticsEnabled,
+                        builder: (context, isEnabled, child) {
+                          return IconButton(
+                            icon: Icon(
+                              isEnabled ? Icons.vibration : Icons.phone_android,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                            onPressed: () => game.toggleHaptics(),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
-                
+
                 const Divider(color: Colors.white24),
                 const SizedBox(height: 10),
 
@@ -350,7 +366,8 @@ class HoldPieceBox extends StatelessWidget {
       child: ValueListenableBuilder<String?>(
         valueListenable: listenable,
         builder: (context, type, child) {
-          if (type == null || type.isEmpty) return Container(); // Puste, jeśli nic nie jest trzymane
+          if (type == null || type.isEmpty)
+            return Container(); // Puste, jeśli nic nie jest trzymane
           final color = tetrominoColors[type]!;
           final gridIndices = nextPieceGrid[type] ?? [];
 
