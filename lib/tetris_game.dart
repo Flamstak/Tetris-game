@@ -1,6 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-// --- DODANO IMPORT HAPTYKI ---
+// --- DODANO IMPORT DLA HAPTYKI ---
 import 'package:flutter/services.dart';
 import 'package:flame/components.dart';
 import 'package:flame/camera.dart';
@@ -9,6 +9,9 @@ import 'dart:async';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flame_audio/flame_audio.dart';
+
+// --- DODANO IMPORT DLA MOCNYCH WIBRACJI ---
+import 'package:vibration/vibration.dart';
 
 import 'tetromino_data.dart';
 import 'tetromino_component.dart';
@@ -37,9 +40,9 @@ enum GameState {
 /// Definiuje typy haptyki dla różnych zdarzeń w grze.
 enum HapticType {
   rotate, // Obrót
-  move,   // Przesunięcie
-  land,   // Lądowanie
-  hold,   // Przechowanie
+  move, // Przesunięcie
+  land, // Lądowanie
+  hold, // Przechowanie
   lineClear, // Czyszczenie linii
   gameOver, // Koniec gry
 }
@@ -240,7 +243,7 @@ class TetrisGame extends FlameGame
   /// Logika akcji "Hold" (przechowania klocka).
   void holdTetromino() {
     if (!_canHold || gameState != GameState.playing) return;
-    
+
     // --- DODANO HAPTYKĘ ---
     triggerHaptics(HapticType.hold);
     _canHold = false;
@@ -304,7 +307,7 @@ class TetrisGame extends FlameGame
       if (_dragAccumulatedX.abs() > tileSize * 1.5) {
         final direction = _dragAccumulatedX > 0 ? 1 : -1;
         currentTetromino.tryMove(Vector2(direction.toDouble(), 0));
-        
+
         // --- DODANO HAPTYKĘ ---
         triggerHaptics(HapticType.move);
         _dragAccumulatedX = 0.0; // Resetuj akumulator
@@ -353,7 +356,7 @@ class TetrisGame extends FlameGame
       return;
     }
     if (gameState != GameState.playing) return;
-    
+
     // Logika haptyki dla obrotu znajduje się w
     // `tetromino_component.dart` w metodzie `rotate()`,
     // ponieważ tylko komponent wie, czy obrót się powiódł.
@@ -451,7 +454,7 @@ class TetrisGame extends FlameGame
       }
       // --- DODANO HAPTYKĘ ---
       triggerHaptics(HapticType.lineClear);
-      
+
       gameState = GameState.lineClearing;
       _dragPointerId = null; // Zablokuj sterowanie
       linesToClear.addAll(fullLines);
@@ -537,7 +540,7 @@ class TetrisGame extends FlameGame
         }
         break;
       case GameState.spawning:
-      // Nic nie rób, czekaj (stan jest już ustawiony na 'playing' w 'spawnNewTetromino')
+      // Nic nie rób, stan jest już ustawiony na 'playing' w 'spawnNewTetromino'
       case GameState.gameOver:
       // Nic nie rób, czekaj na restart
       case GameState.paused:
@@ -567,19 +570,29 @@ class TetrisGame extends FlameGame
 
   /// Inicjuje stan końca gry.
   Future<void> gameOver() async {
+    // 1. NATYCHMIAST ustaw stan, aby zatrzymać pętlę 'update' i sterowanie
     gameState = GameState.gameOver;
-    _dragPointerId = null; // Zablokuj sterowanie
-    
-    // --- DODANO HAPTYKĘ ---
+    _dragPointerId = null;
+
+    // 2. Odpal wibracje "w tle" (BEZ 'await')
+    // Niech sobie działają, podczas gdy my robimy resztę.
     triggerHaptics(HapticType.gameOver);
+
+    // 3. Zatrzymaj muzykę w tle
     FlameAudio.bgm.stop();
 
+    // 4. ZAPISZ WYNIK. To jest operacja 'await' (zapis do SharedPreferences),
+    // co da nam "naturalną" pauzę i pozwoli wibracjom dokończyć się,
+    // zanim przejdziemy do ciężkiej operacji odtwarzania nowego dźwięku.
+    await _updateAndSaveHighScores(score.value);
+
+    // 5. DOPIERO TERAZ odtwórz dźwięk "Game Over".
+    // Wibracje miały już mnóstwo czasu, by się wykonać.
     if (isSfxEnabled.value) {
       FlameAudio.play('game_over.mp3');
     }
 
-    // Zapisz wynik i wyświetl menu
-    await _updateAndSaveHighScores(score.value);
+    // 6. Pokaż menu
     final menu = GameOverMenuComponent(
       score: score.value,
       highScores: highScores,
@@ -701,32 +714,43 @@ class TetrisGame extends FlameGame
     }
   }
 
-  // --- NOWA METODA HAPTYKI ---
+  // --- ZAKTUALIZOWANA METODA HAPTYKI (Wersja Hybrydowa) ---
   /// Wywołuje określony typ wibracji (haptyki).
-  /// Jest to kontrolowane przez ustawienie 'isSfxEnabled'.
-  void triggerHaptics(HapticType type) {
+  Future<void> triggerHaptics(HapticType type) async {
     // Jeśli SFX są wyłączone, haptyka też jest wyłączona.
     if (!isSfxEnabled.value) return;
 
-    // Używamy różnych typów wibracji w zależności od akcji
+    // --- NOWA LOGIKA DLA GAME OVER ---
+    // Dla Game Over używamy potężnego pakietu 'vibration',
+    // aby stworzyć własny, mocny wzorzec "buzz".
+    if (type == HapticType.gameOver) {
+      // Sprawdź, czy urządzenie w ogóle ma wibracje
+      bool? hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator) {
+        Vibration.vibrate(pattern: [0, 150, 350, 150, 350, 800]);
+      }
+      // Ważne: Zakończ funkcję tutaj, aby nie przechodzić do 'switch'
+      return;
+    }
+    
+    // --- STARA LOGIKA DLA SZYBKICH AKCJI ---
+    // Dla wszystkich innych akcji (ruch, obrót) używamy 'HapticFeedback',
+    // ponieważ daje on natychmiastowe "kliknięcie", a nie "bzyczenie".
     switch (type) {
       case HapticType.rotate:
       case HapticType.move:
       case HapticType.hold:
-        // Bardzo lekkie "kliknięcie", idealne do szybkich, powtarzalnych akcji
         HapticFeedback.selectionClick();
         break;
       case HapticType.land:
-        // Subtelne, ale wyczuwalne "uderzenie"
         HapticFeedback.lightImpact();
         break;
       case HapticType.lineClear:
-        // Mocniejsze "uderzenie" za nagrodę
         HapticFeedback.mediumImpact();
         break;
       case HapticType.gameOver:
-        // Mocne, długie uderzenie informujące o porażce
-        HapticFeedback.heavyImpact();
+        // Ten przypadek jest już obsłużony powyżej,
+        // ale musi tu być, aby 'switch' był poprawny.
         break;
     }
   }
