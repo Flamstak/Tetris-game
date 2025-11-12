@@ -180,47 +180,110 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    // Użyj 'spaceAround', aby dać przyciskom więcej miejsca
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.start, // Wyrównaj do góry
                     children: [
-                      // Przycisk Muzyki
+                      // --- 1. ZMIANA: Przycisk Muzyki (Icon + Text) ---
                       ValueListenableBuilder<bool>(
                         valueListenable: game.isMusicEnabled,
                         builder: (context, isEnabled, child) {
-                          return IconButton(
-                            icon: Icon(
-                              isEnabled ? Icons.music_note : Icons.music_off,
-                              color: Colors.white,
-                              size: 40,
+                          // Używamy InkWell (dla kliknięcia) + Column (dla układu)
+                          return InkWell(
+                            onTap: () => game.toggleMusic(),
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isEnabled
+                                        ? Icons.music_note
+                                        : Icons.music_off,
+                                    color: Colors.white,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Music',
+                                    style: TextStyle(
+                                      fontFamily: 'PressStart2P',
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            onPressed: () => game.toggleMusic(),
                           );
                         },
                       ),
-                      // Przycisk SFX
+                      // --- 2. ZMIANA: Przycisk SFX (Icon + Text) ---
                       ValueListenableBuilder<bool>(
                         valueListenable: game.isSfxEnabled,
                         builder: (context, isEnabled, child) {
-                          return IconButton(
-                            icon: Icon(
-                              isEnabled ? Icons.volume_up : Icons.volume_off,
-                              color: Colors.white,
-                              size: 40,
+                          return InkWell(
+                            onTap: () => game.toggleSfx(),
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isEnabled
+                                        ? Icons.volume_up
+                                        : Icons.volume_off,
+                                    color: Colors.white,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'SFX',
+                                    style: TextStyle(
+                                      fontFamily: 'PressStart2P',
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            onPressed: () => game.toggleSfx(),
                           );
                         },
                       ),
-                      // Przycisk Haptyki (NOWY)
+                      // --- 3. ZMIANA: Przycisk Haptyki (Icon + Text) ---
                       ValueListenableBuilder<bool>(
                         valueListenable: game.isHapticsEnabled,
                         builder: (context, isEnabled, child) {
-                          return IconButton(
-                            icon: Icon(
-                              isEnabled ? Icons.vibration : Icons.phone_android,
-                              color: Colors.white,
-                              size: 40,
+                          return InkWell(
+                            onTap: () => game.toggleHaptics(),
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isEnabled
+                                        ? Icons.vibration
+                                        : Icons.phone_android,
+                                    color: Colors.white,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Haptics',
+                                    style: TextStyle(
+                                      fontFamily: 'PressStart2P',
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            onPressed: () => game.toggleHaptics(),
                           );
                         },
                       ),
@@ -231,7 +294,7 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
                 const Divider(color: Colors.white24),
                 const SizedBox(height: 10),
 
-                // --- SEKCJA INSTRUKCJI ---
+                // --- SEKCJA INSTRUKCJI (bez zmian) ---
                 const Text(
                   'How to Play',
                   style: TextStyle(
@@ -255,13 +318,11 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
                   action: 'Soft Drop',
                   description: 'Drag down',
                 ),
-                // --- POPRAWKA TUTAJ ---
                 _InstructionRow(
-                  icon: Icons.back_hand_outlined, // Zamiast 'touch_and_hold_outlined'
+                  icon: Icons.back_hand_outlined,
                   action: 'Hold',
                   description: 'Press and hold',
                 ),
-                // ---------------------
               ],
             ),
           ),
@@ -291,8 +352,7 @@ void _showSettingsDialog(BuildContext context, TetrisGame game) {
   });
 }
 
-// --- NOWY WIDŻET POMOCNICZY DLA INSTRUKCJI ---
-// (Umieść go na dole pliku main.dart)
+// --- WIDŻET POMOCNICZY DLA INSTRUKCJI (bez zmian) ---
 class _InstructionRow extends StatelessWidget {
   final IconData icon;
   final String action;
@@ -339,18 +399,16 @@ class _InstructionRow extends StatelessWidget {
   }
 }
 
-// --- Widżety UI dla Pasków Bocznych (BEZ ZMIAN) ---
-
-/// Widżet Fluttera wyświetlający przechowany klocek ('Hold').
+// --- Widżety Hold i Next (BEZ ZMIAN) ---
 class HoldPieceBox extends StatelessWidget {
   final ValueNotifier<String?> listenable;
   const HoldPieceBox({super.key, required this.listenable});
 
   @override
   Widget build(BuildContext context) {
-    const int gridDimension = 4; // Siatka 4x4
-    const double boxSize = 80.0; // Rozmiar pudełka
-    const double spacing = 2.0; // Odstęp między kafelkami
+    const int gridDimension = 4;
+    const double boxSize = 80.0;
+    const double spacing = 2.0;
 
     return Container(
       width: boxSize,
@@ -367,7 +425,7 @@ class HoldPieceBox extends StatelessWidget {
         valueListenable: listenable,
         builder: (context, type, child) {
           if (type == null || type.isEmpty)
-            return Container(); // Puste, jeśli nic nie jest trzymane
+            return Container();
           final color = tetrominoColors[type]!;
           final gridIndices = nextPieceGrid[type] ?? [];
 
@@ -398,16 +456,15 @@ class HoldPieceBox extends StatelessWidget {
   }
 }
 
-/// Widżet Fluttera wyświetlający następny klocek ('Next').
 class NextPieceBox extends StatelessWidget {
   final ValueNotifier<String> listenable;
   const NextPieceBox({super.key, required this.listenable});
 
   @override
   Widget build(BuildContext context) {
-    const int gridDimension = 4; // Siatka 4x4
-    const double boxSize = 80.0; // Rozmiar pudełka
-    const double spacing = 2.0; // Odstęp między kafelkami
+    const int gridDimension = 4;
+    const double boxSize = 80.0;
+    const double spacing = 2.0;
 
     return Container(
       width: boxSize,
@@ -423,7 +480,7 @@ class NextPieceBox extends StatelessWidget {
       child: ValueListenableBuilder<String>(
         valueListenable: listenable,
         builder: (context, type, child) {
-          if (type.isEmpty) return Container(); // Puste na starcie
+          if (type.isEmpty) return Container();
           final color = tetrominoColors[type]!;
           final gridIndices = nextPieceGrid[type] ?? [];
 
