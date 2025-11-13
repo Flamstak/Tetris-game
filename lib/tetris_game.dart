@@ -1,3 +1,5 @@
+// Plik: tetris_game.dart
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 // --- DODANO IMPORT DLA HAPTYKI ---
@@ -7,11 +9,14 @@ import 'package:flame/camera.dart';
 import 'package:flame/events.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart'; // <-- USUNIĘTE, teraz w SettingsManager
 import 'package:flame_audio/flame_audio.dart';
 
 // --- DODANO IMPORT DLA MOCNYCH WIBRACJI ---
 import 'package:vibration/vibration.dart';
+
+// --- DODANO IMPORT DLA MANAGERA USTAWIEŃ ---
+import 'settings_manager.dart';
 
 import 'tetromino_data.dart';
 import 'tetromino_component.dart';
@@ -103,7 +108,8 @@ class TetrisGame extends FlameGame
   /// Liczba linii wymagana do awansu na kolejny poziom.
   static const int linesPerLevel = 10;
 
-  /// Lista 5 najlepszych wyników, ładowana z [SharedPreferences].
+  /// Lista 5 najlepszych wyników, ładowana z [SettingsManager].
+  /// Wciąż tu przechowywana na potrzeby menu GameOver.
   List<int> highScores = [];
 
   /// Notifier dla typu *następnego* tetromino (dla pola podglądu).
@@ -161,9 +167,9 @@ class TetrisGame extends FlameGame
     // Dodanie komponentu odpowiedzialnego za renderowanie siatki
     add(LandedTilesComponent());
 
-    // Ładowanie trwałych danych
-    await _loadHighScores();
-    await _loadSettings();
+    // --- ZAKTUALIZOWANE ŁADOWANIE DANYCH ---
+    // Ładowanie trwałych danych przez SettingsManager
+    await _loadAllSettingsFromManager();
 
     // Ustawienie "następnego" klocka
     nextTetrominoType.value = _getRandomTetrominoType();
@@ -362,7 +368,7 @@ class TetrisGame extends FlameGame
 
     // Logika haptyki dla obrotu znajduje się w
     // `tetromino_component.dart` w metodzie `rotate()`,
-    // ponieważ tylko komponent wie, czy obrót się powiódł.
+    // ponieważ only komponent wie, czy obrót się powiódł.
     currentTetromino.rotate();
     super.onTapUp(event);
   }
@@ -578,19 +584,16 @@ class TetrisGame extends FlameGame
     _dragPointerId = null;
 
     // 2. Odpal wibracje "w tle" (BEZ 'await')
-    // Niech sobie działają, podczas gdy my robimy resztę.
     triggerHaptics(HapticType.gameOver);
 
     // 3. Zatrzymaj muzykę w tle
     FlameAudio.bgm.stop();
 
-    // 4. ZAPISZ WYNIK. To jest operacja 'await' (zapis do SharedPreferences),
-    // co da nam "naturalną" pauzę i pozwoli wibracjom dokończyć się,
-    // zanim przejdziemy do ciężkiej operacji odtwarzania nowego dźwięku.
-    await _updateAndSaveHighScores(score.value);
+    // 4. --- ZAKTUALIZOWANY ZAPIS WYNIKU ---
+    // ZAPISZ WYNIK. Użyj SettingsManager do zapisu i pobierz zaktualizowaną listę
+    highScores = await SettingsManager.saveNewHighScore(score.value);
 
     // 5. DOPIERO TERAZ odtwórz dźwięk "Game Over".
-    // Wibracje miały już mnóstwo czasu, by się wykonać.
     if (isSfxEnabled.value) {
       FlameAudio.play('game_over.mp3');
     }
@@ -598,7 +601,7 @@ class TetrisGame extends FlameGame
     // 6. Pokaż menu
     final menu = GameOverMenuComponent(
       score: score.value,
-      highScores: highScores,
+      highScores: highScores, // Przekaż zaktualizowaną listę
     );
     add(menu);
   }
@@ -635,41 +638,22 @@ class TetrisGame extends FlameGame
     }
   }
 
-  // --- Zarządzanie Trwałymi Danymi (SharedPreferences) ---
+  // --- Zarządzanie Trwałymi Danymi (przez SettingsManager) ---
 
-  /// Wczytuje najlepsze wyniki z pamięci urządzenia.
-  Future<void> _loadHighScores() async {
-    final prefs = await SharedPreferences.getInstance();
-    final scoreStrings = prefs.getStringList('highScores') ?? [];
-    highScores = scoreStrings.map((s) => int.parse(s)).toList();
+  /// NOWA METODA: Wczytuje wszystkie ustawienia przy starcie gry
+  Future<void> _loadAllSettingsFromManager() async {
+    isMusicEnabled.value = await SettingsManager.loadMusicSetting();
+    isSfxEnabled.value = await SettingsManager.loadSfxSetting();
+    isHapticsEnabled.value = await SettingsManager.loadHapticsSetting();
+    highScores = await SettingsManager.loadHighScores(); // Potrzebne do menu GameOver
   }
 
-  /// Aktualizuje listę najlepszych wyników i zapisuje ją w pamięci.
-  Future<void> _updateAndSaveHighScores(int newScore) async {
-    highScores.add(newScore);
-    highScores.sort((a, b) => b.compareTo(a)); // Sortuj malejąco
-    highScores = highScores.take(5).toList(); // Zachowaj tylko top 5
-
-    final prefs = await SharedPreferences.getInstance();
-    final scoreStrings = highScores.map((s) => s.toString()).toList();
-    await prefs.setStringList('highScores', scoreStrings);
-  }
-
-  /// Wczytuje ustawienia audio z pamięci urządzenia.
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    isMusicEnabled.value = prefs.getBool('isMusicEnabled') ?? true;
-    isSfxEnabled.value = prefs.getBool('isSfxEnabled') ?? true;
-    isHapticsEnabled.value = prefs.getBool('isHapticsEnabled') ?? true;
-  }
-
-  /// Zapisuje bieżące ustawienia audio w pamięci urządzenia.
-  Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isMusicEnabled', isMusicEnabled.value);
-    await prefs.setBool('isSfxEnabled', isSfxEnabled.value);
-    await prefs.setBool('isHapticsEnabled', isHapticsEnabled.value);
-  }
+  // --- USUNIĘTE METODY ZARZĄDZANIA SHPREFS ---
+  // usunięto: _loadHighScores()
+  // usunięto: _updateAndSaveHighScores()
+  // usunięto: _loadSettings()
+  // usunięto: _saveSettings()
+  // -------------------------------------------
 
   /// Przełącza stan muzyki (wł./wył.).
   void toggleMusic() {
@@ -682,19 +666,22 @@ class TetrisGame extends FlameGame
     } else {
       FlameAudio.bgm.stop();
     }
-    _saveSettings();
+    // ZAKTUALIZOWANE: Zapisz przez Managera
+    SettingsManager.saveMusicSetting(isMusicEnabled.value);
   }
 
   /// Przełącza stan efektów dźwiękowych (wł./wył.).
   void toggleSfx() {
     isSfxEnabled.value = !isSfxEnabled.value;
-    _saveSettings();
+    // ZAKTUALIZOWANE: Zapisz przez Managera
+    SettingsManager.saveSfxSetting(isSfxEnabled.value);
   }
 
   /// Przełącza stan wibracji (wł./wył.).
   void toggleHaptics() {
     isHapticsEnabled.value = !isHapticsEnabled.value;
-    _saveSettings();
+    // ZAKTUALIZOWANE: Zapisz przez Managera
+    SettingsManager.saveHapticsSetting(isHapticsEnabled.value);
   }
 
   // --- Zarządzanie Stanem Pauzy ---
