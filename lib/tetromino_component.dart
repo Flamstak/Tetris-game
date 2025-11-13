@@ -96,9 +96,11 @@ class TetrominoComponent extends PositionComponent
   }
 
   /// Obraca klocek (jeśli to nie 'O') o 90 stopni zgodnie z ruchem wskazówek zegara.
+  /// Implementuje logikę "wall kick" do testowania alternatywnych pozycji.
   void rotate() {
     if (tetrominoType == 'O') return; // Klocek 'O' się nie obraca
 
+    // 1. Oblicz nowy kształt po obrocie
     // Logika obrotu (macierz rotacji [0, -1], [1, 0])
     // (x, y) -> (-y, x)
     final List<Vector2> newShape = [];
@@ -106,18 +108,53 @@ class TetrominoComponent extends PositionComponent
       newShape.add(Vector2(-offset.y, offset.x));
     }
 
-    // Sprawdź, czy nowa pozycja po obrocie jest prawidłowa
-    if (game.isValidPosition(gridPosition, newShape)) {
-      shape = newShape;
-      updateTilePositions();
-      game.triggerHaptics(HapticType.rotate);
+    // 2. Zdefiniuj listę "kopnięć" (przesunięć) do przetestowania
+    //    Zaczynamy od (0,0) - czyli brak "kopnięcia".
+    //    Następnie testujemy przesunięcie w lewo i prawo.
+    List<Vector2> kickOffsets = [
+      Vector2(0, 0),   // Pozycja 0 (bez kicka)
+      Vector2(-1, 0),  // Kick w lewo o 1
+      Vector2(1, 0),   // Kick w prawo o 1
+    ];
 
-      // Odtwórz dźwięk obrotu, jeśli SFX są włączone
-      if (game.isSfxEnabled.value) {
-        FlameAudio.play('rotate.wav');
+    // Klocek 'I' ma specyficzne, szersze "kopnięcia"
+    if (tetrominoType == 'I') {
+      kickOffsets.addAll([
+        Vector2(-2, 0), // Kick w lewo o 2
+        Vector2(2, 0),  // Kick w prawo o 2
+      ]);
+    }
+
+    // 3. Przetestuj każdą pozycję "kick"
+    for (final offset in kickOffsets) {
+      final Vector2 newTestPosition = gridPosition + offset;
+
+      // Sprawdź, czy nowa pozycja (po "kopnięciu") jest prawidłowa dla nowego kształtu
+      if (game.isValidPosition(newTestPosition, newShape)) {
+        // ZNALEZIONO PRAWIDŁOWĄ POZYCJĘ!
+
+        // Zastosuj obrót (nowy kształt)
+        shape = newShape;
+        // Zastosuj "kopnięcie" (nowa pozycja)
+        gridPosition = newTestPosition;
+        
+        // Zaktualizuj pozycje wizualne kafelków
+        updateTilePositions();
+        
+        game.triggerHaptics(HapticType.rotate);
+
+        // Odtwórz dźwięk obrotu, jeśli SFX są włączone
+        if (game.isSfxEnabled.value) {
+          FlameAudio.play('rotate.wav');
+        }
+
+        // Zakończ metodę, obrót się powiódł
+        return;
       }
     }
-    // TODO: Dodać logikę "wall kick" (odpychania od ściany), jeśli obrót się nie powiedzie
+
+    // 4. Jeśli pętla się zakończyła, żaden "kick" nie zadziałał.
+    //    Obrót się nie udaje, nic nie rób.
   }
 
   /// Ukrywa "ducha" (używane po wylądowaniu klocka).
