@@ -100,11 +100,14 @@ class GameOverMenuComponent extends PositionComponent implements OpacityProvider
     );
 
     // Użyj aktualnej wartości `opacity` do rysowania tła i ramki
-    final backgroundPaintWithOpacity = Paint()..color = backgroundPaint.color.withOpacity(opacity * 0.8);
-    final borderPaintWithOpacity = Paint()..color = borderPaint.color.withOpacity(opacity);
+    final backgroundPaintWithOpacity = Paint()..color = backgroundPaint.color.withAlpha((opacity * 0.8 * 255).round());
+    final borderPaintWithOpacity = Paint()
+      ..color = borderPaint.color.withAlpha((opacity * 255).round())
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderPaint.strokeWidth;
 
     canvas.drawRRect(rrect, backgroundPaintWithOpacity);
-    canvas.drawRRect(rrect, borderPaint..color = borderPaint.color.withOpacity(opacity));
+    canvas.drawRRect(rrect, borderPaintWithOpacity);
   }
 
   /// Prywatna metoda budująca sformatowany tekst dla menu.

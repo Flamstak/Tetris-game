@@ -469,11 +469,11 @@ class TetrisGame extends FlameGame
       linesToClear.addAll(fullLines);
       lineClearTimer = 0.0;
 
-      // Powiadom komponent siatki, aby rozpoczął animację
-      children
-          .whereType<LandedTilesComponent>()
-          .first
-          .startAnimation(linesToClear);
+      // Powiadom komponent siatki, aby rozpoczął animację i efekty
+      final landedTiles = children.whereType<LandedTilesComponent>().first;
+      landedTiles.startAnimation(linesToClear);
+      landedTiles.spawnClearLineParticles(linesToClear);
+
     } else if (gameState == GameState.playing) {
       // Jeśli nie ma linii do czyszczenia, od razu stwórz nowy klocek
       gameState = GameState.spawning;

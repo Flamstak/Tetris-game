@@ -105,8 +105,16 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       // Używamy WillPopScope z naszą nową metodą _onWillPop
-      body: WillPopScope(
-        onWillPop: _onWillPop, 
+      body: PopScope(
+        canPop: false, // Blokujemy domyślne cofanie
+        onPopInvoked: (didPop) async {
+          if (didPop) return; // Jeśli cofnięcie już się odbyło, nic nie rób
+          if (await _onWillPop()) {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          }
+        },
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
