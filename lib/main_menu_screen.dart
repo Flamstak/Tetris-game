@@ -21,8 +21,8 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       vsync: this,
     );
 
-    // Tworzymy 4 animacje, po jednej dla każdego przycisku, z opóźnieniem
-    _animations = List.generate(4, (index) {
+    // Tworzymy 5 animacji, po jednej dla każdego przycisku, z opóźnieniem
+    _animations = List.generate(5, (index) {
       final startTime = 0.15 * index;
       // Upewniamy się, że endTime nie przekroczy 1.0
       final endTime = (startTime + 0.6).clamp(0.0, 1.0);
@@ -123,6 +123,16 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 text: 'How to Play',
                 onPressed: () {
                   Navigator.pushNamed(context, '/howtoplay');
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            _AnimatedMenuButton(
+              animation: _animations[4],
+              child: _MenuButton(
+                text: 'Themes',
+                onPressed: () {
+                  Navigator.pushNamed(context, '/themes');
                 },
               ),
             ),

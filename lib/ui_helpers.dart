@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tetromino_data.dart'; // Dla kolorów i siatki
+import 'themes.dart'; // <-- NOWY IMPORT
 
 // --- WIDŻET POMOCNICZY DLA INSTRUKCJI ---
 // (Przeniesiony z main.dart i upubliczniony)
@@ -54,7 +55,8 @@ class InstructionRow extends StatelessWidget {
 
 class HoldPieceBox extends StatelessWidget {
   final ValueNotifier<String?> listenable;
-  const HoldPieceBox({super.key, required this.listenable});
+  final GameTheme theme; // <-- DODAJ MOTYW
+  const HoldPieceBox({super.key, required this.listenable, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +79,7 @@ class HoldPieceBox extends StatelessWidget {
         valueListenable: listenable,
         builder: (context, type, child) {
           if (type == null || type.isEmpty) return Container();
-          final color = tetrominoColors[type]!;
+          final color = theme.tetrominoColors[type]!; // <-- UŻYJ MOTYWU
           final gridIndices = nextPieceGrid[type] ?? [];
 
           return GridView.builder(
@@ -109,7 +111,8 @@ class HoldPieceBox extends StatelessWidget {
 
 class NextPieceBox extends StatelessWidget {
   final ValueNotifier<String> listenable;
-  const NextPieceBox({super.key, required this.listenable});
+  final GameTheme theme; // <-- DODAJ MOTYW
+  const NextPieceBox({super.key, required this.listenable, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +135,7 @@ class NextPieceBox extends StatelessWidget {
         valueListenable: listenable,
         builder: (context, type, child) {
           if (type.isEmpty) return Container();
-          final color = tetrominoColors[type]!;
+          final color = theme.tetrominoColors[type]!; // <-- UŻYJ MOTYWU
           final gridIndices = nextPieceGrid[type] ?? [];
 
           return GridView.builder(

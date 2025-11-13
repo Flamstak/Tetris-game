@@ -6,6 +6,7 @@ import 'game_screen.dart';
 import 'high_scores_screen.dart';
 import 'settings_screen.dart';
 import 'how_to_play_screen.dart';
+import 'themes_screen.dart'; // <-- NOWY IMPORT
 
 // --- DODANO ---
 // Globalny obserwator tras, aby ekrany wiedziały, kiedy są widoczne
@@ -43,6 +44,7 @@ class TetrisApp extends StatelessWidget {
         '/highscores': (context) => const HighScoresScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/howtoplay': (context) => const HowToPlayScreen(),
+        '/themes': (context) => const ThemesScreen(), // <-- NOWA TRASA
       },
     );
   }

@@ -21,6 +21,7 @@ import 'settings_manager.dart';
 import 'tetromino_data.dart';
 import 'tetromino_component.dart';
 import 'landed_tiles_component.dart';
+import 'themes.dart'; // <-- NOWY IMPORT
 import 'game_over_menu.dart';
 
 /// Reprezentuje możliwe stany logiki gry.
@@ -130,6 +131,9 @@ class TetrisGame extends FlameGame
   /// Notifier dla ustawienia włączenia/wyłączenia wibracji (haptyki).
   final ValueNotifier<bool> isHapticsEnabled = ValueNotifier(true);
 
+  /// Aktualnie załadowany motyw kolorystyczny.
+  late GameTheme currentTheme = getThemeById('classic');
+
   /// Zwraca losowy typ tetromino (np. 'I', 'L') z mapy kształtów.
   String _getRandomTetrominoType() {
     final keys = tetrominoShapes.keys.toList();
@@ -197,7 +201,7 @@ class TetrisGame extends FlameGame
   void spawnNewTetromino() {
     final String currentType = nextTetrominoType.value;
     final shape = List<Vector2>.from(tetrominoShapes[currentType]!);
-    final color = tetrominoColors[currentType]!;
+    final color = currentTheme.tetrominoColors[currentType]!; // <-- UŻYJ MOTYWU
     final startPos = Vector2(4, 1); // Start blisko góry i środka
 
     // Sprawdzenie "Block Out" (Game Over)
@@ -226,7 +230,7 @@ class TetrisGame extends FlameGame
   /// Używane podczas zamiany klocka z pola "Hold".
   void spawnSpecificTetromino(String type) {
     final shape = List<Vector2>.from(tetrominoShapes[type]!);
-    final color = tetrominoColors[type]!;
+    final color = currentTheme.tetrominoColors[type]!; // <-- UŻYJ MOTYWU
     final startPos = Vector2(4, 1);
 
     // Sprawdzenie "Block Out" (Game Over)
@@ -645,6 +649,8 @@ class TetrisGame extends FlameGame
     isMusicEnabled.value = await SettingsManager.loadMusicSetting();
     isSfxEnabled.value = await SettingsManager.loadSfxSetting();
     isHapticsEnabled.value = await SettingsManager.loadHapticsSetting();
+    final themeId = await SettingsManager.loadThemeSetting(); // <-- WCZYTAJ MOTYW
+    currentTheme = getThemeById(themeId); // <-- USTAW MOTYW
     highScores = await SettingsManager.loadHighScores(); // Potrzebne do menu GameOver
   }
 

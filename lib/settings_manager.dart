@@ -5,6 +5,7 @@ const String _highScoresKey = 'highScores';
 const String _musicKey = 'isMusicEnabled';
 const String _sfxKey = 'isSfxEnabled';
 const String _hapticsKey = 'isHapticsEnabled';
+const String _themeKey = 'selectedThemeId'; // <-- NOWY KLUCZ
 
 /// Klasa zarządzająca trwałą pamięcią (SharedPreferences) dla całej aplikacji.
 class SettingsManager {
@@ -55,4 +56,18 @@ class SettingsManager {
   static Future<void> saveMusicSetting(bool value) => saveSetting(_musicKey, value);
   static Future<void> saveSfxSetting(bool value) => saveSetting(_sfxKey, value);
   static Future<void> saveHapticsSetting(bool value) => saveSetting(_hapticsKey, value);
+
+  // --- Motywy ---
+
+  /// Wczytuje ID wybranego motywu.
+  static Future<String> loadThemeSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_themeKey) ?? 'classic'; // Domyślnie 'classic'
+  }
+
+  /// Zapisuje ID wybranego motywu.
+  static Future<void> saveThemeSetting(String themeId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, themeId);
+  }
 }

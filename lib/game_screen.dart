@@ -129,7 +129,7 @@ class _GameScreenState extends State<GameScreen> {
                     // 1. 'Hold' Box
                     Flexible(
                       flex: 1,
-                      child: HoldPieceBox(listenable: game.heldTetrominoType),
+                      child: HoldPieceBox(listenable: game.heldTetrominoType, theme: game.currentTheme),
                     ),
                     const SizedBox(width: 10),
                     // 2. Kolumna Wyniku i Poziomu
@@ -193,7 +193,7 @@ class _GameScreenState extends State<GameScreen> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // 3a. 'Next' Box
-                          NextPieceBox(listenable: game.nextTetrominoType),
+                          NextPieceBox(listenable: game.nextTetrominoType, theme: game.currentTheme),
                           // 3b. Przycisk Ustawień
                           const SizedBox(height: 10),
                           IconButton(
