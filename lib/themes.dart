@@ -6,21 +6,30 @@ class GameTheme {
   final String name; // Wyświetlana nazwa, np. 'Classic'
   final bool isPremium; // Dla przyszłych płatnych motywów
   final Map<String, Color> tetrominoColors;
+  final Color backgroundColor;
+  final Color primaryColor;
+  final Color accentColor;
 
   const GameTheme({
     required this.id,
     required this.name,
     this.isPremium = false,
     required this.tetrominoColors,
+    required this.backgroundColor,
+    required this.primaryColor,
+    required this.accentColor,
   });
 }
 
 /// Lista wszystkich dostępnych motywów w grze.
 final List<GameTheme> availableThemes = [
   // 1. Motyw klasyczny (domyślny)
-  const GameTheme(
+  GameTheme(
     id: 'classic',
     name: 'Classic',
+    backgroundColor: const Color(0xFF0A0A23), // Ciemny granat tła
+    primaryColor: Colors.blue.shade900, // Ciemnoniebieski dla UI
+    accentColor: Colors.blueAccent,
     tetrominoColors: {
       'I': Colors.cyanAccent,
       'J': Colors.blueAccent,
@@ -35,6 +44,9 @@ final List<GameTheme> availableThemes = [
   const GameTheme(
     id: 'forest',
     name: 'Forest',
+    backgroundColor: Color(0xFF1E2B22),
+    primaryColor: Color(0xFF3A7D44),
+    accentColor: Color(0xFFC58940),
     tetrominoColors: {
       'I': Color(0xFF5DBE8A), // Jasny zielony
       'J': Color(0xFF3A7D44), // Ciemny zielony
@@ -50,6 +62,9 @@ final List<GameTheme> availableThemes = [
     id: 'ocean',
     name: 'Ocean',
     isPremium: true,
+    backgroundColor: Color(0xFF001F3F),
+    primaryColor: Color(0xFF003366),
+    accentColor: Color(0xFF89CFF0),
     tetrominoColors: {
       'I': Color(0xFF89CFF0), 'J': Color(0xFF005A9C), 'L': Color(0xFF00A591),
       'O': Color(0xFFF0E68C), 'S': Color(0xFF50C878), 'T': Color(0xFF9F2B68),

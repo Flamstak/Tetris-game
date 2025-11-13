@@ -1,5 +1,6 @@
 // Plik: tetris_game.dart
 
+import 'package:flame/particles.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 // --- DODANO IMPORT DLA HAPTYKI ---
@@ -141,7 +142,7 @@ class TetrisGame extends FlameGame
   }
 
   @override
-  Color backgroundColor() => const Color(0xFF0A0A23);
+  Color backgroundColor() => currentTheme.backgroundColor;
 
   @override
   Future<void> onLoad() async {
@@ -165,7 +166,7 @@ class TetrisGame extends FlameGame
     grid = List.generate(columns, (_) => List.filled(rows, null));
 
     // Dodanie komponentów tła
-    add(GradientBackgroundComponent());
+    add(ModernBackgroundComponent());
     add(GridBackground());
 
     // Dodanie komponentu odpowiedzialnego za renderowanie siatki
@@ -762,22 +763,57 @@ class TetrisGame extends FlameGame
 
 // --- Komponenty Tła ---
 
-/// Prosty komponent rysujący gradient jako tło gry.
-class GradientBackgroundComponent extends PositionComponent
+/// Nowoczesny komponent tła z gradientem radialnym i animowanymi cząsteczkami.
+class ModernBackgroundComponent extends PositionComponent
     with HasGameReference<TetrisGame> {
-  GradientBackgroundComponent() {
+  final Random _random = Random();
+
+  ModernBackgroundComponent() {
     size = worldSize; // Rozmiar tła równy światu gry
   }
+
+  @override
+  Future<void> onLoad() async {
+    super.onLoad();
+    // Dodaj system cząsteczek
+    add(
+      ParticleSystemComponent(
+        particle: Particle.generate(
+          count: 20, // Ilość "bąbelków"
+          lifespan: 15.0,
+          generator: (i) {
+            final position = Vector2(
+              _random.nextDouble() * size.x,
+              _random.nextDouble() * size.y,
+            );
+            final speed = Vector2.random(_random) * 20; // Wolna prędkość
+            return AcceleratedParticle(
+              speed: speed,
+              position: position,
+              child: ComputedParticle(
+                renderer: (canvas, particle) {
+                  // Płynne pojawianie się i znikanie
+                  final progress = particle.progress;
+                  final double opacity = (progress < 0.5) ? progress * 2 : (1 - progress) * 2;
+                  final paint = Paint()
+                    ..color = game.currentTheme.accentColor.withOpacity(opacity * 0.05);
+                  canvas.drawCircle(Offset.zero, _random.nextDouble() * 40 + 20, paint);
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final gradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        const Color(0xFF0A0A23), // Ciemnoniebieski
-        Colors.black, // Czarny
-      ],
+    final gradient = RadialGradient(
+      center: const Alignment(0.0, -0.5), // Lekko w górę
+      radius: 1.5,
+      colors: [game.currentTheme.primaryColor, game.currentTheme.backgroundColor],
     );
     final paint = Paint()..shader = gradient.createShader(size.toRect());
     canvas.drawRect(size.toRect(), paint);
@@ -785,17 +821,17 @@ class GradientBackgroundComponent extends PositionComponent
 }
 
 /// Prosty komponent rysujący siatkę w tle.
-class GridBackground extends PositionComponent {
+class GridBackground extends PositionComponent with HasGameReference<TetrisGame> {
   GridBackground() {
     size = worldSize;
   }
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final paint = Paint()
-      ..color = Colors.blue.shade900.withAlpha(128)
+    final paint = Paint() // Użyj koloru z motywu
+      ..color = game.currentTheme.accentColor.withOpacity(0.15)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
+      ..strokeWidth = 0.8;
 
     // Linie pionowe
     for (var x = 0.0; x <= size.x; x += tileSize) {

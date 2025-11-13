@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart'; // Import dla routeObserver
+import 'settings_manager.dart';
+import 'themes.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -12,10 +14,25 @@ class _MainMenuScreenState extends State<MainMenuScreen>
     with SingleTickerProviderStateMixin, RouteAware {
   late AnimationController _controller;
   late List<Animation<double>> _animations;
+  late GameTheme _currentTheme;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadThemeAndInitAnimations();
+  }
+
+  Future<void> _loadThemeAndInitAnimations() async {
+    final themeId = await SettingsManager.loadThemeSetting();
+    if (!mounted) return;
+
+    setState(() {
+      _currentTheme = getThemeById(themeId);
+      _isLoading = false;
+    });
+
+    // Inicjalizacja animacji po wczytaniu motywu
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -55,20 +72,28 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   /// Wywoływane, gdy wracamy na ten ekran z innego.
   @override
   void didPopNext() {
+    // Wczytaj motyw ponownie, na wypadek gdyby został zmieniony
+    _loadThemeAndInitAnimations();
     // Zresetuj i uruchom animację od nowa
-    _controller.forward(from: 0.0);
+    if (mounted && !_isLoading) {
+      _controller.forward(from: 0.0);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: _currentTheme.backgroundColor,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Tytuł Gry (można dodać ładniejszą grafikę)
-            const Text(
+            Text(
               'TetrixRush',
               style: TextStyle(
                 fontFamily: 'PressStart2P',
@@ -77,7 +102,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
                 shadows: [
                   Shadow(
                     blurRadius: 10.0,
-                    color: Colors.blueAccent,
+                    color: _currentTheme.accentColor,
                     offset: Offset(0, 0),
                   ),
                 ],
@@ -89,6 +114,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             _AnimatedMenuButton(
               animation: _animations[0],
               child: _MenuButton(
+                theme: _currentTheme,
                 text: 'Start Game',
                 onPressed: () {
                   Navigator.pushNamed(context, '/game');
@@ -100,6 +126,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             _AnimatedMenuButton(
               animation: _animations[1],
               child: _MenuButton(
+                theme: _currentTheme,
                 text: 'Highscores',
                 onPressed: () {
                   Navigator.pushNamed(context, '/highscores');
@@ -110,6 +137,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             _AnimatedMenuButton(
               animation: _animations[2],
               child: _MenuButton(
+                theme: _currentTheme,
                 text: 'Settings',
                 onPressed: () {
                   Navigator.pushNamed(context, '/settings');
@@ -120,6 +148,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             _AnimatedMenuButton(
               animation: _animations[3],
               child: _MenuButton(
+                theme: _currentTheme,
                 text: 'How to Play',
                 onPressed: () {
                   Navigator.pushNamed(context, '/howtoplay');
@@ -130,6 +159,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             _AnimatedMenuButton(
               animation: _animations[4],
               child: _MenuButton(
+                theme: _currentTheme,
                 text: 'Themes',
                 onPressed: () {
                   Navigator.pushNamed(context, '/themes');
@@ -175,12 +205,14 @@ class _MenuButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
   final bool isPrimary; // <-- DODANO: Nowa właściwość
+  final GameTheme theme;
 
   static const double _buttonWidth = 300.0;
 
   const _MenuButton({
     required this.text,
     required this.onPressed,
+    required this.theme,
     this.isPrimary = false, // <-- DODANO: Domyślna wartość to false
   });
 
@@ -188,13 +220,9 @@ class _MenuButton extends StatelessWidget {
   Widget build(BuildContext context) {
     // --- ZMIANY TUTAJ ---
     // Definiujemy kolory w oparciu o flagę isPrimary
-    final Color backgroundColor = isPrimary
-        ? Colors.blueAccent.shade400 // Jaśniejszy, bardziej aktywny kolor
-        : Colors.blue.shade900.withAlpha(200); // Oryginalny kolor
-
-    final Color borderColor = isPrimary
-        ? Colors.blueAccent.shade100.withAlpha(200) // Jaśniejsza ramka
-        : Colors.blue.shade900.withAlpha(128); // Oryginalna ramka
+    final Color backgroundColor = isPrimary ? theme.accentColor : theme.primaryColor;
+    final Color borderColor = isPrimary ? theme.accentColor.withAlpha(200) : theme.primaryColor.withAlpha(150);
+    final Color shadowColor = isPrimary ? theme.accentColor.withAlpha(150) : Colors.black;
 
     return SizedBox(
       width: _buttonWidth, // Ustawiamy stałą szerokość
@@ -204,8 +232,8 @@ class _MenuButton extends StatelessWidget {
           backgroundColor: backgroundColor, // <-- ZMIENIONE: Użycie zmiennej
           padding: const EdgeInsets.symmetric(vertical: 20),
           // Dodajemy cień, aby przycisk się wyróżniał
-          elevation: isPrimary ? 8.0 : 2.0,
-          shadowColor: isPrimary ? Colors.blueAccent.withAlpha(150) : Colors.black,
+          elevation: isPrimary ? 8.0 : 4.0,
+          shadowColor: shadowColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),
             side: BorderSide(

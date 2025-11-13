@@ -10,7 +10,8 @@ class ThemesScreen extends StatefulWidget {
 }
 
 class _ThemesScreenState extends State<ThemesScreen> {
-  late String _selectedThemeId;
+  late String _savedThemeId; // Zapisany motyw
+  late String _previewThemeId; // Aktualnie podglądany motyw
   bool _isLoading = true;
 
   @override
@@ -23,55 +24,79 @@ class _ThemesScreenState extends State<ThemesScreen> {
     final themeId = await SettingsManager.loadThemeSetting();
     if (mounted) {
       setState(() {
-        _selectedThemeId = themeId;
+        _savedThemeId = themeId;
+        _previewThemeId = themeId; // Na starcie podglądany = zapisany
         _isLoading = false;
       });
     }
   }
 
   void _selectTheme(String themeId) {
-    // Tutaj w przyszłości można dodać logikę sprawdzania, czy motyw jest odblokowany
     final theme = getThemeById(themeId);
     if (theme.isPremium) {
-      // Na razie tylko pokazujemy informację
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('This is a premium theme! (Feature coming soon)'),
-          backgroundColor: Colors.blueAccent,
+          backgroundColor: Colors.amber,
         ),
       );
       return;
     }
 
     setState(() {
-      _selectedThemeId = themeId;
+      _previewThemeId = themeId; // Zmień tylko podglądany motyw
     });
-    SettingsManager.saveThemeSetting(themeId);
+  }
+
+  void _applyTheme() {
+    SettingsManager.saveThemeSetting(_previewThemeId);
+    setState(() {
+      _savedThemeId = _previewThemeId;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${getThemeById(_previewThemeId).name} theme applied!'),
+        backgroundColor: getThemeById(_previewThemeId).accentColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Jeśli ekran się ładuje, pokaż domyślny wygląd
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.grey[900]),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final previewTheme = getThemeById(_previewThemeId);
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: previewTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Themes',
           style: TextStyle(fontFamily: 'PressStart2P', color: Colors.white),
         ),
-        backgroundColor: Colors.grey[900],
+        backgroundColor: previewTheme.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
               padding: const EdgeInsets.all(16.0),
               itemCount: availableThemes.length,
               itemBuilder: (context, index) {
                 final theme = availableThemes[index];
-                final isSelected = theme.id == _selectedThemeId;
+                final isPreviewing = theme.id == _previewThemeId;
 
                 return Card(
-                  color: Colors.grey[900],
+                  color: previewTheme.primaryColor.withOpacity(0.5),
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
                   child: ListTile(
                     onTap: () => _selectTheme(theme.id),
@@ -79,19 +104,38 @@ class _ThemesScreenState extends State<ThemesScreen> {
                       theme.name,
                       style: TextStyle(
                         fontFamily: 'PressStart2P',
-                        color: isSelected ? Colors.blueAccent : Colors.white,
+                        color: isPreviewing ? previewTheme.accentColor : Colors.white,
                       ),
                     ),
                     subtitle: _ThemeColorPreview(colors: theme.tetrominoColors.values.toList()),
                     trailing: theme.isPremium
                         ? const Icon(Icons.lock, color: Colors.amber)
-                        : isSelected
-                            ? const Icon(Icons.check_circle, color: Colors.blueAccent)
+                        : isPreviewing
+                            ? Icon(Icons.check_circle, color: previewTheme.accentColor)
                             : null,
                   ),
                 );
               },
             ),
+          ),
+          // Przycisk "Zastosuj"
+          if (_previewThemeId != _savedThemeId)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: _applyTheme,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: previewTheme.accentColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+                ),
+                child: const Text(
+                  'Apply',
+                  style: TextStyle(fontFamily: 'PressStart2P', fontSize: 16, color: Colors.black),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

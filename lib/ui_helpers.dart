@@ -70,8 +70,8 @@ class HoldPieceBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color.fromRGBO(0, 0, 0, 0.8),
         borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-        border: Border.all(
-          color: Colors.blue.shade900.withAlpha(128),
+        border: Border.all( // Użyj koloru z motywu
+          color: theme.primaryColor.withOpacity(0.5),
           width: 2.0,
         ),
       ),
@@ -126,8 +126,8 @@ class NextPieceBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color.fromRGBO(0, 0, 0, 0.8),
         borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-        border: Border.all(
-          color: Colors.blue.shade900.withAlpha(128),
+        border: Border.all( // Użyj koloru z motywu
+          color: theme.primaryColor.withOpacity(0.5),
           width: 2.0,
         ),
       ),
