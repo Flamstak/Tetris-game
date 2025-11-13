@@ -1,9 +1,10 @@
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flutter/material.dart';
 import 'tetromino_data.dart'; // Import dla 'worldSize'
 
 /// Komponent menu "Game Over" wyświetlający wynik i najlepsze wyniki.
-class GameOverMenuComponent extends PositionComponent {
+class GameOverMenuComponent extends PositionComponent implements OpacityProvider {
   /// Końcowy wynik gracza.
   final int score;
 
@@ -14,6 +15,19 @@ class GameOverMenuComponent extends PositionComponent {
   late Vector2 boxSize;
   late Paint backgroundPaint;
   late Paint borderPaint;
+
+  // --- DODANO: Implementacja interfejsu OpacityProvider ---
+  double _opacity = 1.0;
+
+  @override
+  double get opacity => _opacity;
+
+  @override
+  set opacity(double value) {
+    _opacity = value;
+    // Przekaż przezroczystość do potomków (tekstu)
+    children.whereType<OpacityProvider>().forEach((child) => child.opacity = value);
+  }
 
   GameOverMenuComponent({required this.score, required this.highScores}) {
     // Definiujemy rozmiar na podstawie worldSize
@@ -37,6 +51,13 @@ class GameOverMenuComponent extends PositionComponent {
     anchor = Anchor.center; // Wyśrodkuj komponent
     position = worldSize / 2; // Ustaw na środku świata gry
 
+    // --- DODANO ANIMACJĘ ---
+    // Ustaw stan początkowy dla animacji
+    scale = Vector2.all(0.0);
+    // Dzieci komponentu (tekst) również będą dziedziczyć przezroczystość
+    // Użyjemy `OpacityEffect.fadeIn` dla prostoty.
+    // --- KONIEC DODAWANIA ---
+
     // Komponent tekstu dla Flame
     final text = TextBoxComponent(
       text: _buildGameOverText(), // Użyj sformatowanego tekstu
@@ -54,6 +75,18 @@ class GameOverMenuComponent extends PositionComponent {
       ),
     );
     add(text);
+
+    // --- DODANO ANIMACJĘ ---
+    // Dodaj efekt skalowania z "elastyczną" krzywą animacji
+    add(
+      ScaleEffect.to(
+        Vector2.all(1.0),
+        EffectController(duration: 0.6, curve: Curves.elasticOut),
+      ),
+    );
+
+    // Dodaj efekt płynnego pojawiania się (zwiększania przezroczystości)
+    add(OpacityEffect.fadeIn(EffectController(duration: 0.3)));
   }
 
   @override
@@ -66,8 +99,12 @@ class GameOverMenuComponent extends PositionComponent {
       const Radius.circular(8.0),
     );
 
-    canvas.drawRRect(rrect, backgroundPaint);
-    canvas.drawRRect(rrect, borderPaint);
+    // Użyj aktualnej wartości `opacity` do rysowania tła i ramki
+    final backgroundPaintWithOpacity = Paint()..color = backgroundPaint.color.withOpacity(opacity * 0.8);
+    final borderPaintWithOpacity = Paint()..color = borderPaint.color.withOpacity(opacity);
+
+    canvas.drawRRect(rrect, backgroundPaintWithOpacity);
+    canvas.drawRRect(rrect, borderPaint..color = borderPaint.color.withOpacity(opacity));
   }
 
   /// Prywatna metoda budująca sformatowany tekst dla menu.
