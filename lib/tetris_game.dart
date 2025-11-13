@@ -796,7 +796,7 @@ class ModernBackgroundComponent extends PositionComponent
                   final progress = particle.progress;
                   final double opacity = (progress < 0.5) ? progress * 2 : (1 - progress) * 2;
                   final paint = Paint()
-                    ..color = game.currentTheme.accentColor.withOpacity(opacity * 0.05);
+                    ..color = game.currentTheme.accentColor.withAlpha((255 * opacity * 0.05).round());
                   canvas.drawCircle(Offset.zero, _random.nextDouble() * 40 + 20, paint);
                 },
               ),
@@ -829,7 +829,7 @@ class GridBackground extends PositionComponent with HasGameReference<TetrisGame>
   void render(Canvas canvas) {
     super.render(canvas);
     final paint = Paint() // Użyj koloru z motywu
-      ..color = game.currentTheme.accentColor.withOpacity(0.15)
+      ..color = game.currentTheme.accentColor.withAlpha((255 * 0.15).round())
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
 

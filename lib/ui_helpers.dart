@@ -71,7 +71,7 @@ class HoldPieceBox extends StatelessWidget {
         color: const Color.fromRGBO(0, 0, 0, 0.8),
         borderRadius: const BorderRadius.all(Radius.circular(8.0)),
         border: Border.all( // Użyj koloru z motywu
-          color: theme.primaryColor.withOpacity(0.5),
+          color: theme.primaryColor.withAlpha((255 * 0.5).round()),
           width: 2.0,
         ),
       ),
@@ -127,7 +127,7 @@ class NextPieceBox extends StatelessWidget {
         color: const Color.fromRGBO(0, 0, 0, 0.8),
         borderRadius: const BorderRadius.all(Radius.circular(8.0)),
         border: Border.all( // Użyj koloru z motywu
-          color: theme.primaryColor.withOpacity(0.5),
+          color: theme.primaryColor.withAlpha((255 * 0.5).round()),
           width: 2.0,
         ),
       ),

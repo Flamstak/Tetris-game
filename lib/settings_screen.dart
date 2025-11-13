@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'settings_manager.dart';
+import 'themes.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,6 +11,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   // Stan dla tego ekranu
+  late GameTheme _currentTheme;
   bool _isMusicEnabled = true;
   bool _isSfxEnabled = true;
   bool _isHapticsEnabled = true;
@@ -26,12 +28,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final music = await SettingsManager.loadMusicSetting();
     final sfx = await SettingsManager.loadSfxSetting();
     final haptics = await SettingsManager.loadHapticsSetting();
+    final themeId = await SettingsManager.loadThemeSetting();
     if (mounted) {
       setState(() {
         _isMusicEnabled = music;
         _isSfxEnabled = sfx;
         _isHapticsEnabled = haptics;
         _isLoading = false;
+        _currentTheme = getThemeById(themeId);
       });
     }
   }
@@ -63,14 +67,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.grey[900]),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: _currentTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Settings',
           style: TextStyle(fontFamily: 'PressStart2P', color: Colors.white),
         ),
-        backgroundColor: Colors.grey[900],
+        backgroundColor: _currentTheme.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
@@ -93,18 +105,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Music',
                     icon: _isMusicEnabled ? Icons.music_note : Icons.music_off,
                     value: _isMusicEnabled,
+                    theme: _currentTheme,
                     onChanged: (value) => _toggleMusic(),
                   ),
                   _SettingsSwitchTile(
                     title: 'SFX',
                     icon: _isSfxEnabled ? Icons.volume_up : Icons.volume_off,
                     value: _isSfxEnabled,
+                    theme: _currentTheme,
                     onChanged: (value) => _toggleSfx(),
                   ),
                   _SettingsSwitchTile(
                     title: 'Haptics',
                     icon: _isHapticsEnabled ? Icons.vibration : Icons.phone_android,
                     value: _isHapticsEnabled,
+                    theme: _currentTheme,
                     onChanged: (value) => _toggleHaptics(),
                   ),
                 ],
@@ -119,12 +134,14 @@ class _SettingsSwitchTile extends StatelessWidget {
   final String title;
   final IconData icon;
   final bool value;
+  final GameTheme theme;
   final ValueChanged<bool> onChanged;
 
   const _SettingsSwitchTile({
     required this.title,
     required this.icon,
     required this.value,
+    required this.theme,
     required this.onChanged,
   });
 
@@ -139,7 +156,7 @@ class _SettingsSwitchTile extends StatelessWidget {
       secondary: Icon(icon, color: Colors.white, size: 30),
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.blueAccent,
+      activeColor: theme.accentColor,
       inactiveTrackColor: Colors.grey.shade800,
     );
   }

@@ -1,19 +1,52 @@
 import 'package:flutter/material.dart';
 import 'settings_manager.dart'; // Importujemy nasz manager
+import 'themes.dart';
 
-class HighScoresScreen extends StatelessWidget {
+class HighScoresScreen extends StatefulWidget {
   const HighScoresScreen({super.key});
 
   @override
+  State<HighScoresScreen> createState() => _HighScoresScreenState();
+}
+
+class _HighScoresScreenState extends State<HighScoresScreen> {
+  late GameTheme _currentTheme;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final themeId = await SettingsManager.loadThemeSetting();
+    if (mounted) {
+      setState(() {
+        _currentTheme = getThemeById(themeId);
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.grey[900]),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: _currentTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'High Scores',
           style: TextStyle(fontFamily: 'PressStart2P', color: Colors.white),
         ),
-        backgroundColor: Colors.grey[900],
+        backgroundColor: _currentTheme.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
