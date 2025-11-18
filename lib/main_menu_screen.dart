@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart'; // Import dla routeObserver
 import 'settings_manager.dart';
+import 'package:flame_audio/flame_audio.dart'; // <-- NOWY IMPORT
 import 'themes.dart';
 import 'vfx.dart'; // Potrzebne do odświeżenia po powrocie
 
@@ -12,46 +13,49 @@ class MainMenuScreen extends StatefulWidget {
 }
 
 class _MainMenuScreenState extends State<MainMenuScreen>
-    with SingleTickerProviderStateMixin, RouteAware {
-  late AnimationController _controller;
-  late List<Animation<double>> _animations;
+    with SingleTickerProviderStateMixin, RouteAware { // <-- ZMIENIONO: Dodano SingleTickerProviderStateMixin
+  late AnimationController _controller; // <-- NOWOŚĆ: Kontroler animacji
+  late List<Animation<double>> _animations; // <-- NOWOŚĆ: Lista animacji dla przycisków
+  late bool _isSfxEnabled; // <-- NOWOŚĆ: Stan dla efektów dźwiękowych
   late GameTheme _currentTheme;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadThemeAndInitAnimations();
+    _loadSettingsAndInitAnimations();
   }
 
-  Future<void> _loadThemeAndInitAnimations() async {
+  Future<void> _loadSettingsAndInitAnimations() async {
     final themeId = await SettingsManager.loadThemeSetting();
+    final sfxEnabled = await SettingsManager.loadSfxSetting();
     if (!mounted) return;
 
     setState(() {
       _currentTheme = getThemeById(themeId);
+      _isSfxEnabled = sfxEnabled;
       _isLoading = false;
     });
 
-    // Inicjalizacja animacji po wczytaniu motywu
+    // --- NOWOŚĆ: Inicjalizacja animacji po wczytaniu motywu ---
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1200), // Całkowity czas trwania sekwencji
       vsync: this,
     );
 
-    // Tworzymy 5 animacji, po jednej dla każdego przycisku, z opóźnieniem
+    // Tworzymy 5 animacji (po jednej dla każdego przycisku) z opóźnieniem (staggered)
     _animations = List.generate(5, (index) {
-      final startTime = 0.15 * index;
-      // Upewniamy się, że endTime nie przekroczy 1.0
-      final endTime = (startTime + 0.6).clamp(0.0, 1.0);
+      final startTime = 0.15 * index; // Każdy kolejny przycisk startuje z opóźnieniem
+      final endTime = (startTime + 0.6).clamp(0.0, 1.0); // Czas trwania animacji jednego przycisku
       return Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _controller,
-          curve: Interval(startTime, endTime, curve: Curves.easeOut),
+          curve: Interval(startTime, endTime, curve: Curves.easeOut), // Użyj Interval
         ),
       );
     });
 
+    // Uruchom animację
     _controller.forward();
   }
 
@@ -66,19 +70,29 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   void dispose() {
     // Pamiętaj o odsubskrybowaniu obserwatora
     routeObserver.unsubscribe(this);
-    _controller.dispose();
+    _controller.dispose(); // <-- NOWOŚĆ: Zwolnij zasoby kontrolera
     super.dispose();
   }
 
   /// Wywoływane, gdy wracamy na ten ekran z innego.
   @override
   void didPopNext() {
-    // Wczytaj motyw ponownie, na wypadek gdyby został zmieniony
-    _loadThemeAndInitAnimations();
+    // Wczytaj ustawienia ponownie, na wypadek gdyby zostały zmienione
+    _loadSettingsAndInitAnimations();
     // Zresetuj i uruchom animację od nowa
     if (mounted && !_isLoading) {
       _controller.forward(from: 0.0);
     }
+  }
+
+  /// --- NOWOŚĆ: Obsługa naciśnięcia przycisku z dźwiękiem ---
+  void _handleButtonPress(String routeName) {
+    // Odtwórz dźwięk, jeśli SFX są włączone
+    if (_isSfxEnabled) {
+      FlameAudio.play('rotate.wav');
+    }
+    // Przejdź do wybranego ekranu
+    Navigator.pushNamed(context, routeName);
   }
 
   @override
@@ -112,14 +126,13 @@ class _MainMenuScreenState extends State<MainMenuScreen>
             const SizedBox(height: 60),
 
             // Przyciski Menu
+            // --- ZMIENIONO: Każdy przycisk jest teraz opakowany w _AnimatedMenuButton ---
             _AnimatedMenuButton(
               animation: _animations[0],
               child: _MenuButton(
                 theme: _currentTheme,
                 text: 'Start Game',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/game');
-                },
+                onPressed: () => _handleButtonPress('/game'),
                 isPrimary: true,
               ),
             ),
@@ -129,9 +142,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               child: _MenuButton(
                 theme: _currentTheme,
                 text: 'Highscores',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/highscores');
-                },
+                onPressed: () => _handleButtonPress('/highscores'),
               ),
             ),
             const SizedBox(height: 20),
@@ -140,9 +151,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               child: _MenuButton(
                 theme: _currentTheme,
                 text: 'Settings',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/settings');
-                },
+                onPressed: () => _handleButtonPress('/settings'),
               ),
             ),
             const SizedBox(height: 20),
@@ -151,9 +160,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               child: _MenuButton(
                 theme: _currentTheme,
                 text: 'How to Play',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/howtoplay');
-                },
+                onPressed: () => _handleButtonPress('/howtoplay'),
               ),
             ),
             const SizedBox(height: 20),
@@ -162,9 +169,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               child: _MenuButton(
                 theme: _currentTheme,
                 text: 'Skins & Effects',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/customize');
-                },
+                onPressed: () => _handleButtonPress('/customize'),
               ),
             ),
           ],
@@ -174,7 +179,7 @@ class _MainMenuScreenState extends State<MainMenuScreen>
   }
 }
 
-/// Widget opakowujący przycisk, aby go animować.
+/// --- NOWOŚĆ: Widget opakowujący przycisk, aby go animować. ---
 class _AnimatedMenuButton extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
@@ -182,17 +187,18 @@ class _AnimatedMenuButton extends StatelessWidget {
   const _AnimatedMenuButton({required this.animation, required this.child});
 
   @override
+  @override
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: animation,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 0.5), // Zacznij 50% wysokości poniżej
-          end: Offset.zero, // Zakończ w docelowym miejscu
+          begin: const Offset(0, 0.5), // Zacznij 50% wysokości przycisku poniżej
+          end: Offset.zero,           // Zakończ w docelowym miejscu
         ).animate(
           CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOut,
+            curve: Curves.easeOut, // Krzywa animacji dla płynnego "wjazdu"
           ),
         ),
         child: child,

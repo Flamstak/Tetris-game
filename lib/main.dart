@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- NOWY IMPORT
 
 // Importy nowych ekranów
 import 'main_menu_screen.dart';
@@ -14,10 +15,16 @@ final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
 
 /// Główna funkcja aplikacji.
-void main() {
+void main() async { // <-- ZMIENIONO NA ASYNC
   // Upewnij się, że binding Fluttera jest zainicjowany
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // --- NOWOŚĆ: Zablokuj orientację ekranu ---
+  // Ustaw preferowaną orientację na pionową i zablokuj obracanie.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+
   // Uruchom główny widget aplikacji
   runApp(const TetrisApp());
 }
