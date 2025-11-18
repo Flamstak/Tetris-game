@@ -4,6 +4,7 @@ import 'package:flame/particles.dart';
 import 'dart:math';
 import 'tetris_game.dart';
 import 'tetromino_data.dart';
+import 'vfx.dart';
 
 /// Komponent odpowiedzialny za rysowanie wszystkich kafelków, które już wylądowały
 /// (tzn. znajdują się w [game.grid]) oraz za animację czyszczenia linii.
@@ -24,13 +25,13 @@ class LandedTilesComponent extends PositionComponent
   }
 
   /// Rozpoczyna animację dla podanych linii.
-  void startAnimation(List<int> lines) {
+  void startLineClearAnimation(List<int> lines) {
     linesBeingCleared.addAll(lines);
     animationProgress = 0.0;
   }
 
   /// Resetuje stan animacji (kończy ją).
-  void stopAnimation() {
+  void stopLineClearAnimation() {
     linesBeingCleared.clear();
     animationProgress = 0.0;
   }
@@ -95,39 +96,33 @@ class LandedTilesComponent extends PositionComponent
         final color = game.grid[x][y];
 
         if (linesBeingCleared.contains(y)) {
-          // --- NOWA, BARDZIEJ EFEKTOWNA ANIMACJA ---
-
-          // 1. Faza błysku (pierwsze 20% animacji)
-          if (animationProgress < 0.2) {
-            final rect = Rect.fromLTWH(x * tileSize, y * tileSize, tileSize, tileSize);
-            // Jasny, biały błysk
-            canvas.drawRect(rect, Paint()..color = Colors.white);
-            canvas.drawRect(rect, borderPaint);
-            continue; // Przejdź do następnego kafelka
-          }
-
-          // 2. Faza "wymazywania" od środka na zewnątrz
-          // Przeskaluj postęp animacji do zakresu 0.0-1.0 dla tej fazy
-          final wipePhaseProgress = (animationProgress - 0.2) / 0.8;
-
-          final centerColumn = (columns - 1) / 2.0;
-          final distanceFromCenter = (x - centerColumn).abs();
-
-          // `wipeThreshold` rośnie od 0 do `centerColumn`.
-          // Kafelki znikają, gdy ich odległość od centrum jest mniejsza niż próg.
-          final wipeThreshold = wipePhaseProgress * (centerColumn + 1);
-
-          if (distanceFromCenter < wipeThreshold) {
-            // Ten kafelek już "zniknął" w tej klatce animacji, więc go nie rysuj.
+          // --- NOWA LOGIKA: Użyj funkcji animacji z aktywnego pakietu VFX ---
+          if (color != null) {
+            final shouldDrawNormally = game.currentVfxPack.lineClearAnimation(
+              canvas,
+              animationProgress,
+              x,
+              y * tileSize, // Przekazujemy pozycję Y na płótnie
+              color,
+              tileSize, // Przekazujemy standardowy rozmiar kafelka
+              borderPaint,
+            );
+            // Jeśli funkcja animacji zwróci `true`, oznacza to, że mamy
+            // narysować kafelek w standardowy sposób.
+            if (shouldDrawNormally) {
+              // --- TO JEST KLUCZOWA POPRAWKA ---
+              // Rysuj kafelek normalnie, jeśli funkcja animacji tak zdecydowała.
+              final rect = Rect.fromLTWH(x * tileSize, y * tileSize, tileSize, tileSize);
+              canvas.drawRect(rect, Paint()..color = color);
+              canvas.drawRect(rect, borderPaint);
+            }
+            // Jeśli funkcja zwróciła `false`, oznacza to, że sama narysowała
+            // animację (np. zanikanie) lub kafelek ma być niewidoczny. W obu
+            // przypadkach przechodzimy do następnej iteracji.
             continue;
-          } else {
-            // Jeśli kafelek jeszcze nie zniknął, narysuj go normalnie.
-            // To tworzy efekt wymazywania od środka.
-            final rect = Rect.fromLTWH(x * tileSize, y * tileSize, tileSize, tileSize);
-            canvas.drawRect(rect, Paint()..color = color!);
-            canvas.drawRect(rect, borderPaint);
           }
-        } else if (color != null) {
+        } 
+        if (color != null) {
           // --- Normalne Rysowanie Wylądowanego Kafelka ---
           final rect = Rect.fromLTWH(
             x * tileSize,

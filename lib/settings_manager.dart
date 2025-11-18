@@ -6,6 +6,7 @@ const String _musicKey = 'isMusicEnabled';
 const String _sfxKey = 'isSfxEnabled';
 const String _hapticsKey = 'isHapticsEnabled';
 const String _themeKey = 'selectedThemeId'; // <-- NOWY KLUCZ
+const String _vfxKey = 'selectedVfxId'; // <-- NOWY KLUCZ DLA VFX
 
 /// Klasa zarządzająca trwałą pamięcią (SharedPreferences) dla całej aplikacji.
 class SettingsManager {
@@ -69,5 +70,19 @@ class SettingsManager {
   static Future<void> saveThemeSetting(String themeId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeKey, themeId);
+  }
+
+  // --- Efekty Wizualne (VFX) ---
+
+  /// Wczytuje ID wybranego pakietu VFX.
+  static Future<String> loadVfxSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_vfxKey) ?? 'classic_fade'; // Domyślnie 'classic_fade'
+  }
+
+  /// Zapisuje ID wybranego pakietu VFX.
+  static Future<void> saveVfxSetting(String vfxId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_vfxKey, vfxId);
   }
 }

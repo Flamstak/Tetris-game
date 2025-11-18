@@ -23,6 +23,7 @@ import 'tetromino_data.dart';
 import 'tetromino_component.dart';
 import 'landed_tiles_component.dart';
 import 'themes.dart'; // <-- NOWY IMPORT
+import 'vfx.dart'; // <-- NOWY IMPORT
 import 'game_over_menu.dart';
 
 /// Reprezentuje możliwe stany logiki gry.
@@ -134,6 +135,9 @@ class TetrisGame extends FlameGame
 
   /// Aktualnie załadowany motyw kolorystyczny.
   late GameTheme currentTheme = getThemeById('classic');
+
+  /// Aktualnie załadowany pakiet efektów wizualnych.
+  late VfxPack currentVfxPack = getVfxPackById('classic_fade');
 
   /// Zwraca losowy typ tetromino (np. 'I', 'L') z mapy kształtów.
   String _getRandomTetrominoType() {
@@ -476,7 +480,7 @@ class TetrisGame extends FlameGame
 
       // Powiadom komponent siatki, aby rozpoczął animację i efekty
       final landedTiles = children.whereType<LandedTilesComponent>().first;
-      landedTiles.startAnimation(linesToClear);
+      landedTiles.startLineClearAnimation(linesToClear);
       landedTiles.spawnClearLineParticles(linesToClear);
 
     } else if (gameState == GameState.playing) {
@@ -575,7 +579,7 @@ class TetrisGame extends FlameGame
     lineClearTimer = 0;
 
     // Zakończ animację w komponencie siatki
-    children.whereType<LandedTilesComponent>().first.stopAnimation();
+    children.whereType<LandedTilesComponent>().first.stopLineClearAnimation();
 
     // Stwórz nowy klocek
     gameState = GameState.spawning;
@@ -652,6 +656,8 @@ class TetrisGame extends FlameGame
     isHapticsEnabled.value = await SettingsManager.loadHapticsSetting();
     final themeId = await SettingsManager.loadThemeSetting(); // <-- WCZYTAJ MOTYW
     currentTheme = getThemeById(themeId); // <-- USTAW MOTYW
+    final vfxId = await SettingsManager.loadVfxSetting(); // <-- WCZYTAJ VFX
+    currentVfxPack = getVfxPackById(vfxId); // <-- USTAW VFX
     highScores = await SettingsManager.loadHighScores(); // Potrzebne do menu GameOver
   }
 

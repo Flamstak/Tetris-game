@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'main.dart'; // Import dla routeObserver
 import 'settings_manager.dart';
 import 'themes.dart';
+import 'vfx.dart'; // Potrzebne do odświeżenia po powrocie
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -160,9 +161,9 @@ class _MainMenuScreenState extends State<MainMenuScreen>
               animation: _animations[4],
               child: _MenuButton(
                 theme: _currentTheme,
-                text: 'Themes',
+                text: 'Skins & Effects',
                 onPressed: () {
-                  Navigator.pushNamed(context, '/themes');
+                  Navigator.pushNamed(context, '/customize');
                 },
               ),
             ),
