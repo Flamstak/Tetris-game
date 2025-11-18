@@ -1,4 +1,3 @@
-import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'tetromino_data.dart';
@@ -59,8 +58,11 @@ bool _classicLineClearAnimation(
   final fadeProgress = (progress - 0.2) / 0.8;
   final opacity = 1.0 - fadeProgress;
 
-  canvas.drawRect(rect, Paint()..color = color.withOpacity(opacity));
-  canvas.drawRect(rect, borderPaint..color = borderPaint.color.withOpacity(opacity));
+  // ZAKTUALIZOWANO: Użycie `withAlpha` zamiast przestarzałego `withOpacity`
+  final newColor = color.withAlpha((color.a * opacity).round());
+  final newBorderColor = borderPaint.color.withAlpha((borderPaint.color.a * opacity).round());
+  canvas.drawRect(rect, Paint()..color = newColor);
+  canvas.drawRect(rect, borderPaint..color = newBorderColor);
   return false; // Zatrzymujemy dalsze rysowanie
 }
 

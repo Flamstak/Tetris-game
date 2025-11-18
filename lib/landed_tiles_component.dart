@@ -4,7 +4,6 @@ import 'package:flame/particles.dart';
 import 'dart:math';
 import 'tetris_game.dart';
 import 'tetromino_data.dart';
-import 'vfx.dart';
 
 /// Komponent odpowiedzialny za rysowanie wszystkich kafelków, które już wylądowały
 /// (tzn. znajdują się w [game.grid]) oraz za animację czyszczenia linii.

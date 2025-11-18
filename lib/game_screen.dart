@@ -107,7 +107,7 @@ class _GameScreenState extends State<GameScreen> {
       // Używamy WillPopScope z naszą nową metodą _onWillPop
       body: PopScope(
         canPop: false,
-        onPopInvoked: (bool didPop) async {
+        onPopInvokedWithResult: (bool didPop, dynamic result) async {
           if (didPop) return;
           final NavigatorState navigator = Navigator.of(context);
           if (await _onWillPop()) {

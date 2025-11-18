@@ -3,7 +3,6 @@ import 'main.dart'; // Import dla routeObserver
 import 'settings_manager.dart';
 import 'package:flame_audio/flame_audio.dart'; // <-- NOWY IMPORT
 import 'themes.dart';
-import 'vfx.dart'; // Potrzebne do odświeżenia po powrocie
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
